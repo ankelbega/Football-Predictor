@@ -60,6 +60,8 @@ evaluation:
     learning_rate: 0.035
     min_child_samples: 25
     reg_lambda: 2.0
+  report_dir: results
+  figure_dir: docs
   # Explicit aliases are applied after whitespace normalization; add season-specific variants here.
   team_aliases:
     Man Utd: Manchester United
