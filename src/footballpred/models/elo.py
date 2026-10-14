@@ -127,7 +127,7 @@ def add_elo_pre_match_features(matches: pd.DataFrame, config: EloConfig) -> pd.D
     outputs: dict[int, tuple[float, float]] = {}
     for _, day in ordered.groupby("date", sort=True):
         # LEAKAGE GUARD: every fixture on a date sees ratings from strictly earlier dates.
-        for index, match in day.iterrows():
+        for index, match in day.iterrows():  # noqa: B007 -- preserve original iterator binding
             home = str(match["home_team"])
             away = str(match["away_team"])
             outputs[int(match["_original_order"])] = (

@@ -15,7 +15,7 @@ import pandas as pd
 from sklearn.impute import SimpleImputer
 
 from footballpred.models.base import ProbabilityModel, validate_probabilities
-from footballpred.models.baselines import OUTCOMES, outcome_probabilities
+from footballpred.models.baselines import OUTCOMES, outcome_probabilities  # noqa: F401 -- baseline import
 
 
 @dataclass(frozen=True)
@@ -105,7 +105,7 @@ class LightGBM1X2(ProbabilityModel):
         if self.model_ is None or self.imputer_ is None:
             raise RuntimeError("LightGBM1X2.fit must be called before predict_proba")
         x = self.imputer_.transform(features[self.feature_columns_])
-        # LEAKAGE GUARD: the imputer is fitted on this model's training fold, never on prediction rows.
+        # LEAKAGE GUARD: the imputer uses this model's training fold, never prediction rows.
         raw = self.model_.predict_proba(x)
         # In a degenerate training fold a class can be absent; restore canonical H/D/A columns.
         output = np.zeros((len(features), 3), dtype=float)
@@ -190,7 +190,9 @@ class LightGBMBinary:
             return np.full(len(features), self.constant_probability_, dtype=float)
         if self.model_ is None:
             raise RuntimeError("Binary model failed to fit")
-        return self.model_.predict_proba(self.imputer_.transform(features[self.feature_columns_]))[:, 1]
+        return self.model_.predict_proba(
+            self.imputer_.transform(features[self.feature_columns_])
+        )[:, 1]
 
 
 def train_targets(matches: pd.DataFrame) -> dict[str, np.ndarray]:

@@ -198,7 +198,9 @@ class DixonColesModel(ProbabilityModel):
         if (data[["home_goals", "away_goals"]] < 0).any().any():
             raise ValueError("Goal counts must be non-negative")
         self.training_cutoff_ = data["date"].max()
-        self.teams_ = sorted(set(data["home_team"].astype(str)) | set(data["away_team"].astype(str)))
+        self.teams_ = sorted(
+            set(data["home_team"].astype(str)) | set(data["away_team"].astype(str))
+        )
         team_index = {team: i for i, team in enumerate(self.teams_)}
         home_idx = data["home_team"].astype(str).map(team_index).to_numpy(dtype=int)
         away_idx = data["away_team"].astype(str).map(team_index).to_numpy(dtype=int)
@@ -220,8 +222,7 @@ class DixonColesModel(ProbabilityModel):
         upper = np.concatenate(([1.5, 0.8], np.full(2 * n_teams, 2.5), [0.2]))
 
         def likelihood(parameters: np.ndarray) -> float:
-            """Use age weights as recency multipliers in the negative log likelihood."""
-            """Negative weighted log likelihood, with a penalty to limit extreme strengths."""
+            """Evaluate weighted Poisson log likelihood plus a team-strength penalty."""
             intercept, home_advantage = parameters[:2]
             raw_attack = parameters[2 : 2 + n_teams]
             raw_defence = parameters[2 + n_teams : 2 + 2 * n_teams]
@@ -252,7 +253,7 @@ class DixonColesModel(ProbabilityModel):
                 + np.log(tau)
             )
             # Small ridge penalty discourages extreme strengths in sparse seasons.
-            # The quadratic penalty keeps sparse-team attack/defence estimates near league mean.
+            # It keeps sparse-team attack/defence estimates near the league mean.
             regularization = self.config.regularization * (
                 np.sum(attack**2) + np.sum(defence**2)
             )
@@ -294,7 +295,9 @@ class DixonColesModel(ProbabilityModel):
         away_attack = self.attack_.get(str(away_team), 0.0)
         home_defence = self.defence_.get(str(home_team), 0.0)
         away_defence = self.defence_.get(str(away_team), 0.0)
-        home_rate = float(np.exp(self.intercept_ + self.home_advantage_ + home_attack - away_defence))
+        home_rate = float(
+            np.exp(self.intercept_ + self.home_advantage_ + home_attack - away_defence)
+        )
         away_rate = float(np.exp(self.intercept_ + away_attack - home_defence))
         return home_rate, away_rate
 
