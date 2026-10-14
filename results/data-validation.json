@@ -1,0 +1,30 @@
+{
+  "rows": 4560,
+  "date_min": "2014-08-16",
+  "date_max": "2026-05-24",
+  "missing_values": {
+    "date": 0,
+    "league": 0,
+    "season": 0,
+    "home_team": 0,
+    "away_team": 0,
+    "home_goals": 0,
+    "away_goals": 0,
+    "result": 0
+  },
+  "duplicate_matches": 0,
+  "impossible_scores": 0,
+  "invalid_result_codes": 0,
+  "rows_with_suspicious_odds": 170,
+  "odds_columns_checked": [
+    "b365h",
+    "b365d",
+    "b365a",
+    "psch",
+    "pscd",
+    "psca"
+  ],
+  "warnings": [
+    "odds at or below 1.0 or non-finite found"
+  ]
+}

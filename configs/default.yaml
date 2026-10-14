@@ -1,0 +1,218 @@
+data:
+  source_url: "https://www.football-data.co.uk/mmz4281/{season}/{league}.csv"
+  leagues:
+    - E0
+  # Through the latest completed season as of the project setup date (2026-10-14).
+  seasons:
+    - "1415"
+    - "1516"
+    - "1617"
+    - "1718"
+    - "1819"
+    - "1920"
+    - "2021"
+    - "2122"
+    - "2223"
+    - "2324"
+    - "2425"
+    - "2526"
+  cache_dir: data/raw
+  processed_path: data/processed/matches.csv
+  validation_report_path: results/data-validation.json
+  stats_path: results/data-summary.json
+  request_timeout_seconds: 30
+  # Explicit aliases are applied after whitespace normalization; add season-specific variants here.
+  team_aliases:
+    Man Utd: Manchester United
+    Man United: Manchester United
+    Man City: Manchester City
+    Nott'm Forest: Nottingham Forest
+    Nottingham: Nottingham Forest
+    Wolves: Wolverhampton Wanderers
+    West Brom: West Bromwich Albion
+    Newcastle: Newcastle United
+    Tottenham: Tottenham Hotspur
+    QPR: Queens Park Rangers
+    Norwich: Norwich City
+    Cardiff: Cardiff City
+    Stoke: Stoke City
+    Swansea: Swansea City
+    Hull: Hull City
+    Bolton: Bolton Wanderers
+    Blackburn: Blackburn Rovers
+    Birmingham: Birmingham City
+    Leicester: Leicester City
+    Sheffield Utd: Sheffield United
+    Sheffield Weds: Sheffield Wednesday
+    Leeds: Leeds United
+    Brighton: Brighton and Hove Albion
+    West Ham: West Ham United
+    Bournemouth: AFC Bournemouth
+    Luton: Luton Town
+    Ipswich: Ipswich Town
+    Southampton: Southampton
+    Fulham: Fulham
+    Crystal Palace: Crystal Palace
+    Aston Villa: Aston Villa
+    Sunderland: Sunderland
+    Burnley: Burnley
+    Watford: Watford
+    Everton: Everton
+    Arsenal: Arsenal
+    Chelsea: Chelsea
+    Liverpool: Liverpool
+    Manchester United: Manchester United
+    Manchester City: Manchester City
+    Tottenham Hotspur: Tottenham Hotspur
+    Wolverhampton Wanderers: Wolverhampton Wanderers
+    West Bromwich Albion: West Bromwich Albion
+    Newcastle United: Newcastle United
+    Nottingham Forest: Nottingham Forest
+    Brighton and Hove Albion: Brighton and Hove Albion
+    AFC Bournemouth: AFC Bournemouth
+    Brentford: Brentford
+    Reading: Reading
+    Huddersfield: Huddersfield Town
+    Huddersfield Town: Huddersfield Town
+    Wigan: Wigan Athletic
+    Wigan Athletic: Wigan Athletic
+    Portsmouth: Portsmouth
+    Derby: Derby County
+    Derby County: Derby County
+    Charlton: Charlton Athletic
+    Charlton Athletic: Charlton Athletic
+    Coventry: Coventry City
+    Coventry City: Coventry City
+    Millwall: Millwall
+    Middlesbrough: Middlesbrough
+    Preston: Preston North End
+    Preston North End: Preston North End
+    Rotherham: Rotherham United
+    Rotherham United: Rotherham United
+    Barnsley: Barnsley
+    Blackpool: Blackpool
+    Peterborough: Peterborough United
+    Peterborough United: Peterborough United
+    Bristol City: Bristol City
+    Bristol Rvs: Bristol Rovers
+    Sheff Utd: Sheffield United
+    Sheff Wed: Sheffield Wednesday
+    Nott'm Forest: Nottingham Forest
+    Brighton & Hove Albion: Brighton and Hove Albion
+    West Bromwich: West Bromwich Albion
+    Man United: Manchester United
+    Bristol Rovers: Bristol Rovers
+    Swansea: Swansea City
+    Cardiff City: Cardiff City
+    Hull City: Hull City
+    QPR: Queens Park Rangers
+    Queens Park Rangers: Queens Park Rangers
+    Sheffield Wednesday: Sheffield Wednesday
+    Sheffield United: Sheffield United
+    Birmingham City: Birmingham City
+    Stoke City: Stoke City
+    Blackburn Rovers: Blackburn Rovers
+    Bolton Wanderers: Bolton Wanderers
+    Norwich City: Norwich City
+    Leicester City: Leicester City
+    Luton Town: Luton Town
+    Ipswich Town: Ipswich Town
+    Southampton: Southampton
+    Burnley: Burnley
+    Watford: Watford
+    Everton: Everton
+    Fulham: Fulham
+    Crystal Palace: Crystal Palace
+    Aston Villa: Aston Villa
+    Sunderland: Sunderland
+    West Ham United: West Ham United
+    Leeds United: Leeds United
+    Reading: Reading
+    Portsmouth: Portsmouth
+    Middlesbrough: Middlesbrough
+    Wigan Athletic: Wigan Athletic
+    Charlton Athletic: Charlton Athletic
+    Coventry City: Coventry City
+    Millwall: Millwall
+    Barnsley: Barnsley
+    Blackpool: Blackpool
+    Bristol City: Bristol City
+    Swansea City: Swansea City
+    Huddersfield Town: Huddersfield Town
+    Brentford: Brentford
+    Nottingham Forest: Nottingham Forest
+    AFC Bournemouth: AFC Bournemouth
+    Brighton and Hove Albion: Brighton and Hove Albion
+    Wolverhampton Wanderers: Wolverhampton Wanderers
+    Newcastle United: Newcastle United
+    West Bromwich Albion: West Bromwich Albion
+    Tottenham Hotspur: Tottenham Hotspur
+    Manchester City: Manchester City
+    Manchester United: Manchester United
+    Arsenal: Arsenal
+    Chelsea: Chelsea
+    Liverpool: Liverpool
+    Leicester City: Leicester City
+    Everton: Everton
+    Southampton: Southampton
+    Burnley: Burnley
+    Watford: Watford
+    Norwich City: Norwich City
+    Sheffield United: Sheffield United
+    Aston Villa: Aston Villa
+    Crystal Palace: Crystal Palace
+    West Ham United: West Ham United
+    Leeds United: Leeds United
+    Fulham: Fulham
+    Newcastle United: Newcastle United
+    Sunderland: Sunderland
+    Stoke City: Stoke City
+    Swansea City: Swansea City
+    Hull City: Hull City
+    Cardiff City: Cardiff City
+    Queens Park Rangers: Queens Park Rangers
+    Reading: Reading
+    Wigan Athletic: Wigan Athletic
+    Bolton Wanderers: Bolton Wanderers
+    Blackburn Rovers: Blackburn Rovers
+    Birmingham City: Birmingham City
+    Portsmouth: Portsmouth
+    Derby County: Derby County
+    Charlton Athletic: Charlton Athletic
+    Coventry City: Coventry City
+    Millwall: Millwall
+    Middlesbrough: Middlesbrough
+    Preston North End: Preston North End
+    Rotherham United: Rotherham United
+    Peterborough United: Peterborough United
+    Bristol Rovers: Bristol Rovers
+    Sheffield Wednesday: Sheffield Wednesday
+    Huddersfield Town: Huddersfield Town
+    Luton Town: Luton Town
+    Ipswich Town: Ipswich Town
+    Oxford United: Oxford United
+    Leicester City: Leicester City
+    Nottingham Forest: Nottingham Forest
+    Bournemouth: AFC Bournemouth
+    Brighton: Brighton and Hove Albion
+    Man Utd: Manchester United
+    Man City: Manchester City
+    Nott'm Forest: Nottingham Forest
+    Wolves: Wolverhampton Wanderers
+    West Brom: West Bromwich Albion
+    Newcastle: Newcastle United
+    Tottenham: Tottenham Hotspur
+    Leeds: Leeds United
+    Leicester: Leicester City
+    Norwich: Norwich City
+    Sheffield Weds: Sheffield Wednesday
+    Sheffield Utd: Sheffield United
+    Huddersfield: Huddersfield Town
+    Wigan: Wigan Athletic
+    Derby: Derby County
+    Charlton: Charlton Athletic
+    Coventry: Coventry City
+    Preston: Preston North End
+    Rotherham: Rotherham United
+    Peterborough: Peterborough United
+    Bristol Rvs: Bristol Rovers
