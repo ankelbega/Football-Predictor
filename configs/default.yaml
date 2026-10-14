@@ -40,6 +40,14 @@ evaluation:
       - 50.0
       - 65.0
       - 80.0
+  dixon_coles:
+    max_goals: 10
+    time_decay_xi: 0.0018
+    validation_xi:
+      - 0.0
+      - 0.0018
+      - 0.0036
+    score_optimization_maxiter: 400
   # Explicit aliases are applied after whitespace normalization; add season-specific variants here.
   team_aliases:
     Man Utd: Manchester United

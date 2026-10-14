@@ -9,7 +9,7 @@ import pandas as pd
 import typer
 
 from footballpred.config import load_config
-from footballpred.evaluate.report import evaluate_phase2
+from footballpred.evaluate.report import evaluate_phase2, evaluate_phase3
 from footballpred.ingest.download import ingest_dataset
 from footballpred.ingest.validate import write_summary, write_validation_report
 
@@ -62,7 +62,7 @@ def validate(config: Path = typer.Option(Path("configs/default.yaml"), "--config
 
 @app.command()
 def evaluate(config: Path = typer.Option(Path("configs/default.yaml"), "--config", "-c")) -> None:
-    """Evaluate Phase 2 baselines and Elo using configured temporal seasons."""
+    """Evaluate baselines, Elo, and Dixon-Coles using configured temporal seasons."""
     settings = load_config(config)
     dataset = _load_processed(settings.data.processed_path)
     section = settings.model_dump()["evaluation"]
@@ -74,6 +74,17 @@ def evaluate(config: Path = typer.Option(Path("configs/default.yaml"), "--config
         settings.data.results_path,
     )
     typer.echo(f"Saved {len(results)} metric rows to {settings.data.results_path}")
+    phase3_results = evaluate_phase3(
+        dataset,
+        str(section["validation_season"]),
+        [str(season) for season in section["test_seasons"]],
+        section,
+        settings.data.results_path,
+    )
+    typer.echo(
+        f"Saved {len(phase3_results)} market metric rows to "
+        "results/phase3-market-comparison.csv"
+    )
 
 
 if __name__ == "__main__":

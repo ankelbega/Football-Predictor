@@ -60,15 +60,28 @@ def clean_source_file(
     frame["league"] = league
     frame["season"] = season
 
-    for column in (*ODDS_COLUMNS, "B365>2.5", "B365<2.5", "Avg>2.5", "Avg<2.5"):
+    for column in (
+        *ODDS_COLUMNS,
+        "B365>2.5",
+        "B365<2.5",
+        "Avg>2.5",
+        "Avg<2.5",
+    ):
         if column in frame.columns:
             frame[column.lower().replace(">", "_over_").replace("<", "_under_")] = pd.to_numeric(
                 frame[column], errors="coerce"
             )
+    for column in ("B365btts_yes", "B365btts_no", "Avgbtts_yes", "Avgbtts_no"):
+        if column in frame.columns:
+            frame[column.lower()] = pd.to_numeric(frame[column], errors="coerce")
     keep = [
         "date", "league", "season", "home_team", "away_team", "home_goals", "away_goals", "result"
     ]
-    keep.extend(column for column in frame.columns if column.startswith(("b365", "psc", "avg")))
+    keep.extend(
+        column
+        for column in frame.columns
+        if column.startswith(("b365", "psc", "avg"))
+    )
     cleaned = frame[keep].dropna(
         subset=["date", "home_team", "away_team", "home_goals", "away_goals"]
     )

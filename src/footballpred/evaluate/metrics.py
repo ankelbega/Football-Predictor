@@ -68,6 +68,33 @@ def expected_calibration_error(
     return float(score)
 
 
+def binary_log_loss(y_true: np.ndarray, probabilities: np.ndarray) -> float:
+    """Binary log loss for positive-event probabilities."""
+    target = np.asarray(y_true, dtype=float)
+    probs = _validate_binary(target, probabilities)
+    return float(-np.mean(target * np.log(np.clip(probs, 1e-15, 1.0))
+                          + (1 - target) * np.log(np.clip(1 - probs, 1e-15, 1.0))))
+
+
+def binary_brier_score(y_true: np.ndarray, probabilities: np.ndarray) -> float:
+    """Binary Brier score for positive-event probabilities."""
+    target = np.asarray(y_true, dtype=float)
+    probs = _validate_binary(target, probabilities)
+    return float(np.mean((probs - target) ** 2))
+
+
+def _validate_binary(target: np.ndarray, probabilities: np.ndarray) -> np.ndarray:
+    """Validate equal-length binary targets and positive-event probabilities."""
+    probs = np.asarray(probabilities, dtype=float)
+    if target.ndim != 1 or probs.shape != target.shape:
+        raise ValueError("Binary targets and probabilities must be one-dimensional and aligned")
+    if not np.isin(target, [0, 1]).all():
+        raise ValueError("Binary targets must contain only 0 and 1")
+    if not np.isfinite(probs).all() or (probs < 0).any() or (probs > 1).any():
+        raise ValueError("Probabilities must be finite and within [0, 1]")
+    return probs
+
+
 def outcome_rate_vector(result_labels: list[str] | np.ndarray) -> np.ndarray:
     """Convenience wrapper to compute empirical prior probabilities from outcome labels."""
     return outcome_probabilities_from_labels(result_labels).mean(axis=0)

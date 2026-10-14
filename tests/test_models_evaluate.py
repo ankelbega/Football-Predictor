@@ -15,6 +15,13 @@ from footballpred.models.baselines import (
     ClassPriorModel,
     bookmaker_probabilities,
 )
+from footballpred.models.dixon_coles import (
+    DixonColesConfig,
+    DixonColesModel,
+    dixon_coles_tau,
+    markets_from_score_matrix,
+    poisson_score_matrix,
+)
 from footballpred.models.elo import (
     EloConfig,
     EloModel,
@@ -114,3 +121,36 @@ def test_elo_model_outputs_valid_probabilities() -> None:
     assert probabilities.shape == (2, 3)
     assert ((probabilities >= 0) & (probabilities <= 1)).all()
     assert np.allclose(probabilities.sum(axis=1), 1.0, atol=1e-6)
+
+
+def test_dixon_coles_matrix_normalization_and_derived_markets_consistent() -> None:
+    matrix = poisson_score_matrix(1.6, 1.1, rho=-0.08, max_goals=10)
+    assert matrix.sum() == pytest.approx(1.0, abs=1e-12)
+    assert (matrix >= 0).all()
+    markets = markets_from_score_matrix(matrix)
+    assert np.asarray(markets["1x2"]).sum() == pytest.approx(1.0, abs=1e-12)
+    assert markets["over_2_5"] + markets["under_2_5"] == pytest.approx(1.0)
+    assert markets["btts_yes"] + markets["btts_no"] == pytest.approx(1.0)
+    assert markets["1x2"][0] == pytest.approx(np.tril(matrix, k=-1).sum())
+    goals = np.add.outer(np.arange(11), np.arange(11))
+    assert markets["over_2_5"] == pytest.approx(matrix[goals >= 3].sum())
+    assert markets["btts_yes"] == pytest.approx(matrix[1:, 1:].sum())
+    assert len(markets["scorelines"]) == 5
+
+
+def test_dixon_coles_correction_only_changes_low_scores() -> None:
+    assert dixon_coles_tau(0, 0, 1.4, 1.2, -0.1) != 1.0
+    assert dixon_coles_tau(2, 1, 1.4, 1.2, -0.1) == 1.0
+
+
+def test_dixon_coles_fit_and_predict_markets() -> None:
+    matches = small_matches()
+    config = DixonColesConfig(xi=0.0, max_goals=8, maxiter=100)
+    model = DixonColesModel(config).fit(matches.iloc[:3])
+    probabilities = model.predict_proba(matches.iloc[3:])
+    assert probabilities.shape == (2, 3)
+    assert np.allclose(probabilities.sum(axis=1), 1.0, atol=1e-6)
+    markets = model.predict_markets(matches.iloc[3:])
+    assert len(markets) == 2
+    assert all(0 <= entry["over_2_5"] <= 1 for entry in markets)
+    assert model.training_cutoff_ == pd.Timestamp("2022-08-03")
