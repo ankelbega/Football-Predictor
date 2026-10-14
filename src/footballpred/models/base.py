@@ -54,7 +54,11 @@ def validate_probabilities(probabilities: np.ndarray, tolerance: float = 1e-6) -
     values = np.asarray(probabilities, dtype=float)
     if values.ndim != 2 or values.shape[1] != 3:
         raise ValueError("Expected an (n_matches, 3) probability matrix")
-    if not np.isfinite(values).all() or (values < -tolerance).any() or (values > 1 + tolerance).any():
+    if (
+        not np.isfinite(values).all()
+        or (values < -tolerance).any()
+        or (values > 1 + tolerance).any()
+    ):
         raise ValueError("Probabilities must be finite and within [0, 1]")
     row_sums = values.sum(axis=1)
     if not np.allclose(row_sums, 1.0, atol=tolerance):

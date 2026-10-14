@@ -25,7 +25,6 @@ class TemperatureScaler:
         self.temperature_: float = 1.0
 
     def fit(self, probabilities: np.ndarray, y_true: np.ndarray) -> TemperatureScaler:
-        # Temperature divides logits: below one sharpens confidence, above one softens it.
         """Find the temperature that minimizes validation log loss.
 
         Args:
@@ -36,6 +35,7 @@ class TemperatureScaler:
             This fitted scaler. The optimizer works on log-temperature so temperature stays
             positive.
         """
+        # Temperature divides logits: below one sharpens confidence, above one softens it.
         probs = np.clip(np.asarray(probabilities, dtype=float), 1e-12, 1.0)
         logits = np.log(probs)
         labels = np.asarray(y_true)
@@ -75,7 +75,6 @@ class PlattScaler:
         self.models_: list[LogisticRegression] = []
 
     def fit(self, probabilities: np.ndarray, y_true: np.ndarray) -> PlattScaler:
-        # One-vs-rest Platt fits P(class | that class's raw probability); normalize after.
         """Fit one-vs-rest logistic regressions from validation probabilities.
 
         Args:
@@ -85,6 +84,7 @@ class PlattScaler:
         Returns:
             This fitted scaler.
         """
+        # One-vs-rest Platt fits P(class | that class's raw probability); normalize after.
         values = np.asarray(probabilities, dtype=float)
         labels = np.asarray(y_true)
         self.models_ = []
@@ -164,7 +164,9 @@ class IsotonicMulticlassScaler:
         self.smoothing = smoothing
         self.identity_: bool = False
 
-    def fit(self, probabilities: np.ndarray, y_true: np.ndarray) -> IsotonicMulticlassScaler:
+    def fit(
+        self, probabilities: np.ndarray, y_true: np.ndarray
+    ) -> IsotonicMulticlassScaler:
         """Fit class curves and class-rate smoothing priors on validation rows.
 
         Args:
@@ -245,7 +247,11 @@ def select_multiclass_calibrator(
     return best_name, candidates[best_name][0], scores
 
 
-def apply_multiclass_calibrator(name: str, calibrator: object, probabilities: np.ndarray) -> np.ndarray:
+def apply_multiclass_calibrator(
+    name: str,
+    calibrator: object,
+    probabilities: np.ndarray,
+) -> np.ndarray:
     """Apply a selected mapping, or return the raw matrix when selection chose no calibration.
 
     Args:
