@@ -113,7 +113,11 @@ class PlattScaler:
 
 
 class IsotonicBinaryScaler:
-    """Binary isotonic calibration, fitted exclusively on validation predictions."""
+    """Binary isotonic calibration fitted on validation predictions only.
+
+    It maps confidence monotonically to observed event frequency, but can form sharp steps on
+    small validation samples; the evaluator keeps this as a diagnostic rather than selection.
+    """
 
     def __init__(self) -> None:
         """Create an unfitted binary isotonic mapping."""
@@ -151,7 +155,11 @@ class IsotonicBinaryScaler:
 
 
 class IsotonicMulticlassScaler:
-    """Fit one monotonic calibration curve per class, then normalize outputs."""
+    """Fit monotonic class curves, add a small prior, then normalize outputs.
+
+    Isotonic regression makes a piecewise-constant mapping from raw confidence to empirical
+    frequency. Its flexibility can overfit modest validation samples.
+    """
 
     def __init__(self, smoothing: float = 0.01) -> None:
         """Create an unfitted scaler.

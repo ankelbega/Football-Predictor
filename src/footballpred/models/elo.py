@@ -162,6 +162,7 @@ class EloModel(ProbabilityModel):
     The mapping uses opposing logistic tails for home/away and assigns the remaining mass to draw.
     """
 
+    # Fit the draw-aware probability mapping on training rows after chronological rating replay.
     name = "elo"
     classes_ = np.asarray(OUTCOMES)
 

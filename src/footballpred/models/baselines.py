@@ -70,6 +70,13 @@ def bookmaker_probabilities(matches: pd.DataFrame) -> tuple[np.ndarray, str]:
 
     Available odds triplets are normalized per row to remove the overround proportionally.
     The per-row fallback order is Pinnacle closing, Bet365, then any generic Avg triplet.
+
+    Args:
+        matches: Fixture rows containing at least one complete three-way odds triplet.
+
+    Returns:
+        H/D/A probability matrix and combined source label. Missing valid odds raise rather
+        than inventing a replacement probability.
     """
     # NORMALIZATION: 1/decimal odds are implied probabilities; dividing by their sum removes
     # the bookmaker margin proportionally. Fallback is per fixture, not per whole file.

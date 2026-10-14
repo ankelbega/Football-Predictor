@@ -168,6 +168,7 @@ class DixonColesModel(ProbabilityModel):
         self.defence_: dict[str, float] = {}
         self.home_advantage_: float = 0.0
         self.intercept_: float = np.log(1.35)
+        # rho controls the low-score dependence adjustment estimated jointly with team strengths.
         self.rho_: float = 0.0
         self.training_cutoff_: pd.Timestamp | None = None
         self.optimization_success_: bool = False
@@ -229,6 +230,7 @@ class DixonColesModel(ProbabilityModel):
             attack = raw_attack - raw_attack.mean()
             defence = raw_defence - raw_defence.mean()
             rho = parameters[-1]
+            # Log rates combine league average, team attack, opponent defence and home advantage.
             home_log_rate = intercept + home_advantage + attack[home_idx] - defence[away_idx]
             away_log_rate = intercept + attack[away_idx] - defence[home_idx]
             home_rate = np.exp(np.clip(home_log_rate, -4, 4))

@@ -48,6 +48,7 @@ class LightGBM1X2(ProbabilityModel):
     normalized vector. Median imputation is fitted on training features only.
     """
 
+    # One multiclass ensemble predicts the H/D/A categories jointly.
     name = "lightgbm"
     classes_ = np.asarray(OUTCOMES)
 
@@ -86,6 +87,7 @@ class LightGBM1X2(ProbabilityModel):
             min_child_samples=self.config.min_child_samples,
             reg_lambda=self.config.reg_lambda,
             random_state=self.config.random_state,
+            # One CPU worker avoids nested parallelism and makes laptop runs predictable.
             n_jobs=1,
             verbosity=-1,
         )

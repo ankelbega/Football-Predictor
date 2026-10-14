@@ -15,6 +15,7 @@ import pandas as pd
 class ProbabilityModel(ABC):
     """Abstract interface for models predicting home win, draw, and away win."""
 
+    # Shared contract lets evaluation compare forecasts without special-casing model classes.
     name: str
     classes_: np.ndarray
 
