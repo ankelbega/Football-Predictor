@@ -1,4 +1,8 @@
-"""Quality checks and compact exploratory statistics for processed matches."""
+"""Validate required match rows and write compact dataset summaries.
+
+This ingest-stage module runs after cleaning and before feature/model work. It reports source
+problems rather than silently repairing them, keeping downstream results reviewable.
+"""
 
 from __future__ import annotations
 
@@ -14,7 +18,15 @@ LOGGER = logging.getLogger(__name__)
 
 
 def validate_matches(frame: pd.DataFrame) -> dict[str, Any]:
-    """Return a machine-readable quality report; suspicious rows are counted, not hidden."""
+    """Count missing fields, duplicate fixtures, impossible scores and suspicious odds.
+
+    Args:
+        frame: Processed matches with date, league, season, home/away teams, goals and result.
+
+    Returns:
+        JSON-compatible counts and warnings. Odds <= 1 are flagged because decimal prices
+        must exceed one; missing optional odds do not count as suspicious.
+    """
     required = [
         "date",
         "league",
@@ -28,6 +40,7 @@ def validate_matches(frame: pd.DataFrame) -> dict[str, Any]:
     missing_columns = [name for name in required if name not in frame.columns]
     if missing_columns:
         raise ValueError(f"Processed dataset missing required columns: {missing_columns}")
+    # Duplicate match keys are counted on both copies so the report shows affected rows.
     duplicates = frame.duplicated(["date", "league", "home_team", "away_team"], keep=False)
     impossible = (frame["home_goals"] < 0) | (frame["away_goals"] < 0)
     invalid_result = ~frame["result"].isin(["H", "D", "A"])
@@ -70,7 +83,15 @@ def validate_matches(frame: pd.DataFrame) -> dict[str, Any]:
 
 
 def write_validation_report(frame: pd.DataFrame, path: str | Path) -> dict[str, Any]:
-    """Log and write the data-quality report as JSON."""
+    """Save validation counts to JSON and log the same report.
+
+    Args:
+        frame: Canonical processed match dataframe.
+        path: Destination JSON path.
+
+    Returns:
+        The report mapping written to disk.
+    """
     report = validate_matches(frame)
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
@@ -80,7 +101,14 @@ def write_validation_report(frame: pd.DataFrame, path: str | Path) -> dict[str, 
 
 
 def summarize_matches(frame: pd.DataFrame) -> dict[str, Any]:
-    """Produce basic descriptive statistics for source-data inspection."""
+    """Calculate match counts, outcome rates and goal distribution summaries.
+
+    Args:
+        frame: Processed matches with result and home/away goals.
+
+    Returns:
+        JSON-compatible descriptive statistics; no predictive metrics are calculated here.
+    """
     goals = frame["home_goals"] + frame["away_goals"]
     return {
         "matches": int(len(frame)),
@@ -102,7 +130,15 @@ def summarize_matches(frame: pd.DataFrame) -> dict[str, Any]:
 
 
 def write_summary(frame: pd.DataFrame, path: str | Path) -> dict[str, Any]:
-    """Write descriptive data statistics as JSON."""
+    """Write the descriptive summary to JSON and return it.
+
+    Args:
+        frame: Processed match dataframe.
+        path: Destination JSON path.
+
+    Returns:
+        Summary mapping.
+    """
     summary = summarize_matches(frame)
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)

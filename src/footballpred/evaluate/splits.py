@@ -1,4 +1,8 @@
-"""Chronological season and validation/test split helpers."""
+"""Create ordered train, validation and test season partitions.
+
+This evaluate-stage module is called before tuning and walk-forward scoring. It uses season
+labels plus actual date checks so later forecasts cannot train on future results.
+"""
 
 from __future__ import annotations
 
@@ -9,7 +13,15 @@ import pandas as pd
 
 @dataclass(frozen=True)
 class TemporalSplit:
-    """Train/validation/test frames with chronological boundaries."""
+    """Container for match frames and the season labels used to create the split.
+
+    Args:
+        train: All rows from seasons before the validation season.
+        validation: Rows from the selected tuning season.
+        test: Rows from configured later seasons.
+        validation_season: Four-digit football-data season label.
+        test_seasons: Ordered labels of held-out seasons.
+    """
 
     train: pd.DataFrame
     validation: pd.DataFrame
@@ -23,7 +35,19 @@ def season_split(
     validation_season: str,
     test_seasons: tuple[str, ...] | list[str],
 ) -> TemporalSplit:
-    """Split by configured season labels; training seasons must precede validation and test."""
+    """Split matches by season and verify strict chronological partition boundaries.
+
+    Args:
+        matches: Match dataframe requiring ``season`` and ``date`` columns.
+        validation_season: Season reserved for tuning and calibration decisions.
+        test_seasons: One or more later seasons for final reporting.
+
+    Returns:
+        Train, validation and test copies with non-overlapping chronological dates.
+
+    Raises:
+        ValueError: If a season is absent, labels cannot be ordered, or date ranges overlap.
+    """
     if "season" not in matches.columns:
         raise ValueError("Input matches require a season column")
     seasons = matches["season"].astype(str)
@@ -42,6 +66,8 @@ def season_split(
     test_positions = [all_seasons.index(season) for season in test_tuple]
     if any(position <= validation_pos for position in test_positions):
         raise ValueError("Every test season must be later than the validation season")
+    # SPLIT GUARD: training only includes seasons preceding validation; test seasons must
+    # follow validation and are independently checked using match dates below.
     train_seasons = set(all_seasons[:validation_pos])
     test_season_set = set(test_tuple)
     train = matches.loc[seasons.isin(train_seasons)].copy()
@@ -52,7 +78,14 @@ def season_split(
 
 
 def _season_start(season: str) -> int:
-    """Sort football-data season labels (e.g. 1415, 2021, 2526) chronologically."""
+    """Convert the first two season digits into a sortable start year.
+
+    Args:
+        season: Four-digit football-data season, such as 1415 or 2021.
+
+    Returns:
+        Four-digit calendar year at the start of the season.
+    """
     if len(season) != 4 or not season.isdigit():
         raise ValueError(f"Cannot order season label {season!r}; expected four digits")
     first = int(season[:2])
@@ -60,6 +93,15 @@ def _season_start(season: str) -> int:
 
 
 def _assert_chronological(*frames: pd.DataFrame) -> None:
+    """Raise if adjacent non-empty partitions touch or overlap in calendar dates.
+
+    Args:
+        frames: Train, validation and test dataframes with date columns in chronological order.
+
+    Returns:
+        None. This is the final date-level split safeguard.
+    """
+    # SPLIT GUARD: season labels alone are insufficient if a malformed season file has bad dates.
     dates = [pd.to_datetime(frame["date"]) for frame in frames if not frame.empty]
     for earlier, later in zip(dates, dates[1:], strict=False):
         if earlier.max() >= later.min():

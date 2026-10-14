@@ -1,4 +1,8 @@
-"""SHAP summaries for the trained LightGBM multiclass classifier."""
+"""Compute global and local SHAP contributions for fitted LightGBM trees.
+
+This explain-stage module is called by evaluation reports and text explanations. SHAP values
+describe model raw-score contributions; they are not direct changes in normalized probability.
+"""
 
 from __future__ import annotations
 
@@ -16,7 +20,17 @@ def compute_global_importance(
     features: pd.DataFrame,
     max_samples: int = 500,
 ) -> pd.DataFrame:
-    """Compute mean absolute SHAP importance per feature over a deterministic sample."""
+    """Compute mean absolute per-class SHAP contribution over a deterministic sample.
+
+    Args:
+        model: Fitted LightGBM 1X2 classifier and training-fitted imputer.
+        features: Causal feature rows to summarize.
+        max_samples: Upper bound on rows explained; evenly spaced row indices keep the summary
+            repeatable and reduce CPU/memory cost.
+
+    Returns:
+        Feature and mean absolute SHAP score table sorted from largest to smallest.
+    """
     if model.model_ is None or model.imputer_ is None:
         raise RuntimeError("Fit LightGBM1X2 before requesting SHAP values")
     x = model.imputer_.transform(features[model.feature_columns_])
@@ -24,6 +38,7 @@ def compute_global_importance(
         indices = np.linspace(0, len(x) - 1, max_samples, dtype=int)
         x = x[indices]
     explainer = shap.TreeExplainer(model.model_.booster_)
+    # Mean absolute SHAP averages impact size across rows and each of the three class outputs.
     explanation = explainer.shap_values(x)
     if isinstance(explanation, list):
         values = np.stack(explanation, axis=0)
@@ -50,7 +65,17 @@ def save_global_importance(
     figure_path: str | Path,
     top_n: int = 20,
 ) -> None:
-    """Persist feature ranking and a SHAP global bar plot."""
+    """Write the SHAP table and a PNG bar chart for the highest-ranked features.
+
+    Args:
+        importance: Feature ranking returned by ``compute_global_importance``.
+        csv_path: Destination CSV path.
+        figure_path: Destination PNG path.
+        top_n: Number of leading features to plot.
+
+    Returns:
+        None. Both parent directories are created if needed.
+    """
     csv_destination = Path(csv_path)
     image_destination = Path(figure_path)
     csv_destination.parent.mkdir(parents=True, exist_ok=True)
@@ -77,7 +102,16 @@ def local_shap_values(
     one_row: pd.DataFrame,
     class_index: int = 0,
 ) -> tuple[np.ndarray, float]:
-    """Return one-vs-rest local SHAP values and expected value for a single fixture."""
+    """Return selected-class contributions and baseline raw score for one match.
+
+    Args:
+        model: Fitted LightGBM multiclass model.
+        one_row: Single numeric feature row with the model's feature columns.
+        class_index: H/D/A column index to explain.
+
+    Returns:
+        Feature contribution vector and SHAP expected value, both on model raw-score scale.
+    """
     if model.model_ is None or model.imputer_ is None:
         raise RuntimeError("Fit LightGBM1X2 before requesting SHAP values")
     x = model.imputer_.transform(one_row[model.feature_columns_])

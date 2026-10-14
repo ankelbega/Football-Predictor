@@ -1,3 +1,9 @@
+"""Exercise the serving contract using a tiny generated history and temporary bundle.
+
+These API tests protect routes and probability response shapes without requiring the full raw
+football-data downloads or the checked-in local model artifact.
+"""
+
 from pathlib import Path
 
 import pandas as pd
@@ -8,6 +14,7 @@ from footballpred.pipeline import fit_deployable_models, save_bundle
 
 
 def sample_data() -> pd.DataFrame:
+    """Create repeatable match rows for API tests, not a performance benchmark."""
     rows = []
     teams = ["Arsenal", "Chelsea", "Liverpool", "Everton"]
     dates = pd.date_range("2021-08-01", periods=80, freq="7D")
@@ -30,6 +37,7 @@ def sample_data() -> pd.DataFrame:
 
 
 def test_api_smoke_health_teams_predict_and_unknown_team(tmp_path: Path) -> None:
+    """Protect health, team listing, prediction schema, probability sums, and 404 handling."""
     data = sample_data()
     settings = {
         "lightgbm": {
@@ -73,6 +81,7 @@ def test_api_smoke_health_teams_predict_and_unknown_team(tmp_path: Path) -> None
 
 
 def test_api_dixon_coles_variant(tmp_path: Path) -> None:
+    """Protect the alternate score-model API path and its response model label."""
     data = sample_data()
     settings = {
         "lightgbm": {
@@ -103,3 +112,35 @@ def test_api_dixon_coles_variant(tmp_path: Path) -> None:
     )
     assert response.status_code == 200
     assert response.json()["model"] == "dixon_coles"
+
+
+def test_api_rejects_same_team_and_training_cutoff_dates(tmp_path: Path) -> None:
+    """Protect API callers from self-fixtures and retrospective leakage requests."""
+    data = sample_data()
+    settings = {
+        "lightgbm": {
+            "validation_estimators": [10],
+            "validation_num_leaves": [7],
+            "learning_rate": 0.05,
+            "min_child_samples": 2,
+            "reg_lambda": 1.0,
+            "random_state": 17,
+        },
+        "dixon_coles": {
+            "validation_xi": [0.0, 0.0018],
+            "max_goals": 10,
+            "score_optimization_maxiter": 100,
+        },
+    }
+    bundle = fit_deployable_models(data, settings)
+    client = TestClient(create_app(save_bundle(bundle, tmp_path / "cutoff.joblib")))
+    same_team = client.get(
+        "/predict",
+        params={"home": "Arsenal", "away": "Arsenal", "date": "2025-04-01"},
+    )
+    assert same_team.status_code == 422
+    historical = client.get(
+        "/predict",
+        params={"home": "Arsenal", "away": "Chelsea", "date": "2022-01-01"},
+    )
+    assert historical.status_code == 422

@@ -1,3 +1,9 @@
+"""Check probability math, temporal safeguards, model outputs and explanations.
+
+Small deterministic fixtures keep these model/evaluation tests fast while protecting core
+analytics behavior used by the full season reports.
+"""
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -37,6 +43,7 @@ from footballpred.models.lgbm import LightGBM1X2, LightGBMBinary, LightGBMConfig
 
 
 def small_matches() -> pd.DataFrame:
+    """Return five hand-readable fixtures spanning training, validation and test seasons."""
     return pd.DataFrame(
         {
             "date": pd.to_datetime(
@@ -53,6 +60,7 @@ def small_matches() -> pd.DataFrame:
 
 
 def test_metric_scores_match_hand_computed_values() -> None:
+    """Protect proper scoring formulas against class-order or cumulative-sum mistakes."""
     labels = np.array(["H", "D"])
     probabilities = np.array([[0.7, 0.2, 0.1], [0.2, 0.5, 0.3]])
     target = np.array([[1, 0, 0], [0, 1, 0]], dtype=float)
@@ -66,6 +74,7 @@ def test_metric_scores_match_hand_computed_values() -> None:
 
 
 def test_split_is_chronological_and_test_not_before_training() -> None:
+    """Protect the partition boundary from accidental random or backward season splits."""
     split = season_split(small_matches(), "2324", ["2425"])
     assert split.train["date"].max() < split.validation["date"].min()
     assert split.validation["date"].max() < split.test["date"].min()
@@ -74,6 +83,7 @@ def test_split_is_chronological_and_test_not_before_training() -> None:
 
 
 def test_elo_update_is_zero_sum_and_expected_score_is_symmetric() -> None:
+    """Protect rating conservation and the neutral Elo expected-score midpoint."""
     config = EloConfig(k_factor=20, home_advantage=0)
     before = 1500 + 1475
     home_after, away_after = update_ratings(1500, 1475, 2, 0, config)
@@ -83,6 +93,7 @@ def test_elo_update_is_zero_sum_and_expected_score_is_symmetric() -> None:
 
 
 def test_elo_pre_match_features_same_day_does_not_update_between_fixtures() -> None:
+    """Protect same-day fixtures from learning one another's result through Elo state."""
     matches = pd.DataFrame(
         {
             "date": pd.to_datetime(["2024-01-01", "2024-01-01", "2024-01-02"]),
@@ -99,6 +110,7 @@ def test_elo_pre_match_features_same_day_does_not_update_between_fixtures() -> N
 
 
 def test_baselines_emit_valid_probabilities_and_odds_remove_overround() -> None:
+    """Protect prior and market vectors from invalid sums and bookmaker margin leakage."""
     training = small_matches().iloc[:3]
     test = pd.DataFrame(
         {
@@ -120,6 +132,7 @@ def test_baselines_emit_valid_probabilities_and_odds_remove_overround() -> None:
 
 
 def test_elo_model_outputs_valid_probabilities() -> None:
+    """Protect the draw-aware Elo mapping's output range and row normalization."""
     matches = small_matches()
     model = EloModel(EloConfig()).fit(matches.iloc[:3])
     probabilities = model.predict_proba(matches.iloc[3:])
@@ -129,6 +142,7 @@ def test_elo_model_outputs_valid_probabilities() -> None:
 
 
 def test_dixon_coles_matrix_normalization_and_derived_markets_consistent() -> None:
+    """Protect score-matrix probability mass and market sums from separate calculations."""
     matrix = poisson_score_matrix(1.6, 1.1, rho=-0.08, max_goals=10)
     assert matrix.sum() == pytest.approx(1.0, abs=1e-12)
     assert (matrix >= 0).all()
@@ -144,11 +158,13 @@ def test_dixon_coles_matrix_normalization_and_derived_markets_consistent() -> No
 
 
 def test_dixon_coles_correction_only_changes_low_scores() -> None:
+    """Protect rho from affecting score pairs outside Dixon–Coles's four low-score cells."""
     assert dixon_coles_tau(0, 0, 1.4, 1.2, -0.1) != 1.0
     assert dixon_coles_tau(2, 1, 1.4, 1.2, -0.1) == 1.0
 
 
 def test_dixon_coles_fit_and_predict_markets() -> None:
+    """Protect fitted score models from malformed market probabilities or cutoff metadata."""
     matches = small_matches()
     config = DixonColesConfig(xi=0.0, max_goals=8, maxiter=100)
     model = DixonColesModel(config).fit(matches.iloc[:3])
@@ -162,6 +178,7 @@ def test_dixon_coles_fit_and_predict_markets() -> None:
 
 
 def test_feature_pipeline_is_invariant_to_future_results() -> None:
+    """Protect all earlier features from changes to a later match's outcomes and shots."""
     frame = pd.DataFrame(
         {
             "date": pd.to_datetime(
@@ -192,6 +209,7 @@ def test_feature_pipeline_is_invariant_to_future_results() -> None:
 
 
 def test_same_day_match_results_do_not_affect_each_others_features() -> None:
+    """Protect each fixture on a shared date from observing another fixture's final score."""
     frame = pd.DataFrame(
         {
             "date": pd.to_datetime(["2024-01-01", "2024-01-02", "2024-01-02", "2024-01-03"]),
@@ -209,6 +227,7 @@ def test_same_day_match_results_do_not_affect_each_others_features() -> None:
 
 
 def test_lightgbm_classifiers_and_validation_calibration_probabilities() -> None:
+    """Protect multiclass and binary LightGBM outputs and calibration candidate contracts."""
     matches = pd.concat([small_matches()] * 24, ignore_index=True)
     matches["date"] = pd.date_range("2021-01-01", periods=len(matches), freq="D")
     features = build_features(matches)
@@ -229,6 +248,7 @@ def test_lightgbm_classifiers_and_validation_calibration_probabilities() -> None
 
 
 def test_ensemble_weight_tuning_returns_valid_probability_vectors() -> None:
+    """Protect validation-weighted blends from invalid weights or non-normalized rows."""
     labels = np.array(["H", "D", "A"])
     dc = np.array([[0.6, 0.25, 0.15], [0.3, 0.4, 0.3], [0.1, 0.25, 0.65]])
     lgb = np.array([[0.55, 0.3, 0.15], [0.25, 0.5, 0.25], [0.15, 0.25, 0.6]])
@@ -239,6 +259,7 @@ def test_ensemble_weight_tuning_returns_valid_probability_vectors() -> None:
 
 
 def test_shap_local_explanation_is_labeled_as_raw_score_not_pp() -> None:
+    """Protect local explanations from falsely describing raw SHAP values as probability points."""
     matches = pd.concat([small_matches()] * 24, ignore_index=True)
     matches["date"] = pd.date_range("2021-01-01", periods=len(matches), freq="D")
     features = build_features(matches)

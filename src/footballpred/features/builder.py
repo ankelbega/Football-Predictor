@@ -1,4 +1,8 @@
-"""Build historical team form features using only matches on earlier calendar dates."""
+"""Build leakage-safe match features from the processed match table.
+
+This feature-stage module is called by training, evaluation, CLI prediction, and API serving.
+It joins prior results, venue form, rest and Elo ratings without using the current result.
+"""
 
 from __future__ import annotations
 
@@ -19,11 +23,21 @@ def build_features(
     elo_config: EloConfig | None = None,
     form_windows: tuple[int, ...] = FORM_WINDOWS,
 ) -> pd.DataFrame:
-    """Return one feature row per match, aligned to input ordering.
+    """Build one causal numeric feature row per match, preserving input row order.
 
-    Fixtures on the same date are batched: features are read first, then every result from
-    that date is added to team histories. Current-match shots and scores only enter histories
-    after all fixtures dated that day have had their features materialized.
+    Args:
+        matches: Rows with ``date``, ``home_team``, ``away_team``, ``home_goals`` and
+            ``away_goals``. Optional ``season`` and shots columns are used when available.
+        elo_config: Elo initialization and home-advantage settings; defaults to ``EloConfig``.
+        form_windows: Recent-match counts used for rolling team form.
+
+    Returns:
+        Numeric dataframe aligned row-for-row with ``matches``. ``elo_home`` and
+        ``elo_away`` are pre-match ratings; unavailable early form/shots are NaN.
+
+    Assumptions:
+        Season progress divides prior distinct match dates by 38, the planned matchdays
+        for a standard 20-team league; it is capped at one.
     """
     required = {"date", "home_team", "away_team", "home_goals", "away_goals"}
     missing = required - set(matches.columns)
@@ -34,6 +48,7 @@ def build_features(
     if "season" not in data:
         data["season"] = data["date"].dt.year.astype(str)
 
+    # NORMALIZATION: source shot headers vary by season, so use the first recognized alias.
     numeric_inputs = {
         "home_shots": _first_column(data, ("hs", "HS", "home_shots")),
         "away_shots": _first_column(data, ("as", "AS", "away_shots")),
@@ -54,7 +69,7 @@ def build_features(
         ["date", "row_number"], kind="stable"
     )
     for match_date, day in grouped.groupby("date", sort=True):
-        # Feature snapshot for all games on a date is taken before updating histories.
+        # LEAKAGE GUARD: snapshot every fixture first; same-day results cannot cross-match.
         for _, row in day.iterrows():
             home, away = str(row["home_team"]), str(row["away_team"])
             season = str(row["season"])
@@ -72,7 +87,7 @@ def build_features(
                     _add_form_features(features, side, venue_history[-window:], venue, window)
             feature_rows[row_number] = features
 
-        # Update after emitting all pre-match feature rows for this date.
+        # LEAKAGE GUARD: append this date's scores and shots only after its snapshot is complete.
         for _, row in day.iterrows():
             home, away = str(row["home_team"]), str(row["away_team"])
             season = str(row["season"])
@@ -106,22 +121,48 @@ def build_features(
     feature_frame["elo_home"] = elo["elo_home"].to_numpy()
     feature_frame["elo_away"] = elo["elo_away"].to_numpy()
     feature_frame["elo_difference"] = elo["elo_difference"].to_numpy()
-    # Progress is strictly causal: fraction of planned season fixtures elapsed before this day,
-    # using the conventional 380 match count for a 20-club league and no final season size.
+    # ASSUMPTION: use 38 matchdays (380 fixtures in a full 20-team league) rather than
+    # final season size, which would leak how many matches were eventually played.
     prior_days = data.groupby("season")["date"].rank(method="dense").to_numpy() - 1.0
     feature_frame["season_progress"] = np.minimum(prior_days / 38.0, 1.0)
     return feature_frame.replace([np.inf, -np.inf], np.nan)
 
 
 def _first_column(frame: pd.DataFrame, candidates: tuple[str, ...]) -> str | None:
+    """Return the first available column alias, or None when all are absent.
+
+    Args:
+        frame: Source dataframe whose headers are inspected.
+        candidates: Alias names in preferred order.
+
+    Returns:
+        The matched column name, or None.
+    """
     return next((name for name in candidates if name in frame.columns), None)
 
 
 def _days_rest(current: pd.Timestamp, last: pd.Timestamp | None) -> float:
+    """Return full rest days before a fixture, or NaN when the team is unseen.
+
+    Args:
+        current: Current fixture date.
+        last: Previous date on which the team played.
+
+    Returns:
+        Difference in whole calendar days, or NaN for a cold start.
+    """
     return float((current - last).days) if last is not None else np.nan
 
 
 def _number_or_nan(value: object) -> float:
+    """Convert an optional source statistic to a finite float or NaN.
+
+    Args:
+        value: Raw cell value from an optional shots column.
+
+    Returns:
+        Finite numeric value when parseable; otherwise NaN for later imputation.
+    """
     try:
         result = float(value)
     except (TypeError, ValueError):
@@ -136,7 +177,18 @@ def _add_form_features(
     venue: str,
     window: int,
 ) -> None:
-    """Add per-game means; missing optional shooting stats remain NaN for LightGBM."""
+    """Add rolling per-match means for the selected team form window.
+
+    Args:
+        output: Feature mapping populated in place.
+        side: Fixture perspective, either home or away.
+        history: Only completed matches before the fixture date.
+        venue: ``overall``, ``home``, or ``away`` history label.
+        window: Maximum number of matches represented by this history slice.
+
+    Returns:
+        None. Missing optional shots remain NaN for the model imputer.
+    """
     for metric in METRICS:
         values = np.asarray([row[metric] for row in history], dtype=float)
         if len(values):

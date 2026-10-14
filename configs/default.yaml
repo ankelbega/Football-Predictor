@@ -1,8 +1,10 @@
 data:
+  # URL placeholders {season}/{league} point to football-data.co.uk CSV files.
   source_url: "https://www.football-data.co.uk/mmz4281/{season}/{league}.csv"
+  # Provider league codes; add a league here to request its matching CSVs.
   leagues:
     - E0
-  # Through the latest completed season as of the project setup date (2026-10-14).
+  # Four-digit season codes from 2014/15 through the latest completed season.
   seasons:
     - "1415"
     - "1516"
@@ -16,54 +18,83 @@ data:
     - "2324"
     - "2425"
     - "2526"
+  # Local source cache avoids re-downloading unchanged season files.
   cache_dir: data/raw
+  # Stable match table written after source cleaning.
   processed_path: data/processed/matches.csv
+  # Validation counters and warnings written as JSON.
   validation_report_path: results/data-validation.json
+  # Basic outcome and goals summary written as JSON.
   stats_path: results/data-summary.json
+  # Default output CSV for model metrics.
   results_path: results/model-comparison.csv
+  # Local fitted-model bundle; ignored by git because it contains binaries.
   model_path: models/football-model.joblib
+  # HTTP request timeout in seconds; raise for slow networks.
   request_timeout_seconds: 30
+  # Explicit source team spellings mapped to canonical names after whitespace cleanup.
 evaluation:
+  # Used to select settings; validation rows are not final test results.
   validation_season: "2324"
+  # Held-out seasons, later than validation and evaluated one at a time.
   test_seasons:
     - "2425"
     - "2526"
   elo:
+    # Neutral rating assigned before a team has prior results.
     initial_rating: 1500.0
+    # Rating points added to home expectation, not a one-sided rating update.
     home_advantage: 65.0
+    # Update sensitivity; larger values make each match change ratings more.
     k_factor: 20.0
+    # Scale rating changes by a bounded function of goal margin.
     goal_difference_multiplier: true
+    # Candidate K values compared using validation log loss.
     validation_k_factors:
       - 12.0
       - 20.0
       - 30.0
+    # Candidate home-advantage values in rating points, tuned on validation only.
     validation_home_advantages:
       - 50.0
       - 65.0
       - 80.0
   dixon_coles:
+    # Maximum goals per team in the score matrix; larger values grow it quadratically.
     max_goals: 10
+    # Exponential decay per day; larger values favor recent matches more strongly.
     time_decay_xi: 0.0018
+    # Decay candidates compared using validation 1X2 log loss.
     validation_xi:
       - 0.0
       - 0.0018
       - 0.0036
+    # Maximum likelihood optimizer steps; more steps cost CPU and can aid convergence.
     score_optimization_maxiter: 400
   lightgbm:
+    # Fixed pseudorandom seed for repeatable fitting.
     random_state: 2026
+    # Candidate boosting rounds; more trees add complexity and can overfit.
     validation_estimators:
       - 120
       - 220
+    # Candidate leaves per tree; more leaves allow more complex splits.
     validation_num_leaves:
       - 7
       - 15
+    # Boosting step size; smaller values generally require more rounds.
     learning_rate: 0.035
+    # Minimum rows per leaf; increase to regularize more.
     min_child_samples: 25
+    # L2 shrinkage on leaf scores; increase to regularize more.
     reg_lambda: 2.0
+  # Directory for generated evaluation tables and tuning searches.
   report_dir: results
+  # Directory for generated report figures.
   figure_dir: docs
   # Explicit aliases are applied after whitespace normalization; add season-specific variants here.
   team_aliases:
+    # Each entry below maps an exact source spelling to its canonical club name.
     Man Utd: Manchester United
     Man United: Manchester United
     Man City: Manchester City

@@ -1,4 +1,8 @@
-"""Download and cache public football-data.co.uk match files."""
+"""Download configured football-data.co.uk CSVs and persist a cleaned dataset.
+
+This ingest-stage module feeds source files through ``clean_source_file`` and writes the stable
+match table used by validation, feature building, model fitting, and evaluation.
+"""
 
 from __future__ import annotations
 
@@ -16,7 +20,15 @@ LOGGER = logging.getLogger(__name__)
 
 
 def download_source(config: DataConfig, refresh: bool = False) -> list[Path]:
-    """Download configured CSVs, retaining successful files in the local cache."""
+    """Download or reuse the raw CSV cache for configured league-season pairs.
+
+    Args:
+        config: Data URLs, leagues, seasons, cache directory and timeout.
+        refresh: If true, fetch even when a cached file exists.
+
+    Returns:
+        Paths to available CSVs. Unavailable seasons are logged and skipped; no successes raises.
+    """
     config.cache_dir.mkdir(parents=True, exist_ok=True)
     paths: list[Path] = []
     for league in config.leagues:
@@ -31,6 +43,7 @@ def download_source(config: DataConfig, refresh: bool = False) -> list[Path]:
                 request = Request(
                     url, headers={"User-Agent": "football-predictor/0.1 research project"}
                 )
+                # Cache the response bytes as-is; decoding/normalization belongs to clean.py.
                 with urlopen(request, timeout=config.request_timeout_seconds) as response:
                     content = response.read()
                 if not content.strip():
@@ -46,7 +59,15 @@ def download_source(config: DataConfig, refresh: bool = False) -> list[Path]:
 
 
 def ingest_dataset(config: DataConfig, refresh: bool = False) -> pd.DataFrame:
-    """Download/cache configured sources, normalize, combine, and persist matches."""
+    """Create the project processed match table from configured sources.
+
+    Args:
+        config: Ingestion and output path settings.
+        refresh: Whether to bypass the raw-file cache.
+
+    Returns:
+        Concatenated cleaned matches with stable columns. Unusable source files are skipped.
+    """
     files = download_source(config, refresh=refresh)
     frames: list[pd.DataFrame] = []
     for path in files:

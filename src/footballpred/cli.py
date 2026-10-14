@@ -1,4 +1,8 @@
-"""Command-line entry point for data setup and inspection."""
+"""Expose the project pipeline as repeatable command-line stages.
+
+This CLI connects config loading to ingest, features, evaluation, training, and prediction.
+Each command delegates work to its stage module so runs can be repeated and tested separately.
+"""
 
 from __future__ import annotations
 
@@ -23,6 +27,7 @@ app = typer.Typer(help="Reproducible football forecasting research pipeline.")
 
 
 def _load_processed(path: Path) -> pd.DataFrame:
+    """Load the canonical match CSV with parsed dates or give the download instruction."""
     if not path.exists():
         message = f"Processed dataset not found at {path}; run 'footballpred download' first"
         raise typer.BadParameter(message)
@@ -33,7 +38,11 @@ def _load_processed(path: Path) -> pd.DataFrame:
 def main(
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable debug logging."),
 ) -> None:
-    """Prepare and inspect open football match data."""
+    """Configure command logging for interactive or debug runs.
+
+    Args:
+        verbose: Enable debug logs when true.
+    """
     logging.basicConfig(
         level=logging.DEBUG if verbose else logging.INFO,
         format="%(levelname)s %(message)s",
@@ -45,7 +54,12 @@ def download(
     config: Path = typer.Option(Path("configs/default.yaml"), "--config", "-c"),
     refresh: bool = typer.Option(False, "--refresh", help="Redownload files, bypassing the cache."),
 ) -> None:
-    """Download/cache and normalize the configured seasons and leagues."""
+    """Download/cache configured CSVs and save normalized match rows.
+
+    Args:
+        config: YAML configuration path.
+        refresh: Bypass the raw file cache when true.
+    """
     settings = load_config(config)
     dataset = ingest_dataset(settings.data, refresh=refresh)
     typer.echo(f"Saved {len(dataset):,} matches to {settings.data.processed_path}")
@@ -53,7 +67,11 @@ def download(
 
 @app.command()
 def validate(config: Path = typer.Option(Path("configs/default.yaml"), "--config", "-c")) -> None:
-    """Validate the processed dataset and write its data-quality report and summary."""
+    """Validate processed rows and write JSON quality and descriptive-stat reports.
+
+    Args:
+        config: YAML configuration path.
+    """
     settings = load_config(config)
     dataset = _load_processed(settings.data.processed_path)
     report = write_validation_report(dataset, settings.data.validation_report_path)
@@ -68,7 +86,11 @@ def validate(config: Path = typer.Option(Path("configs/default.yaml"), "--config
 
 @app.command()
 def evaluate(config: Path = typer.Option(Path("configs/default.yaml"), "--config", "-c")) -> None:
-    """Evaluate baselines, Elo, and Dixon-Coles using configured temporal seasons."""
+    """Run chronological baseline, Elo, Dixon–Coles and LightGBM evaluations.
+
+    Args:
+        config: YAML path with validation/test seasons and model search ranges.
+    """
     settings = load_config(config)
     dataset = _load_processed(settings.data.processed_path)
     section = settings.model_dump()["evaluation"]
@@ -106,7 +128,11 @@ def evaluate(config: Path = typer.Option(Path("configs/default.yaml"), "--config
 
 @app.command()
 def train(config: Path = typer.Option(Path("configs/default.yaml"), "--config", "-c")) -> None:
-    """Fit final deployable models on all downloaded completed-season matches."""
+    """Fit final serving models and save the local gitignored bundle.
+
+    Args:
+        config: YAML path selecting processed data and model artifact path.
+    """
     settings = load_config(config)
     matches = _load_processed(settings.data.processed_path)
     bundle = fit_deployable_models(matches, settings.evaluation)
@@ -122,7 +148,12 @@ def build_features_command(
     config: Path = typer.Option(Path("configs/default.yaml"), "--config", "-c"),
     output: Path = typer.Option(Path("data/processed/features.csv"), "--output", "-o"),
 ) -> None:
-    """Build and save causal pre-match features for configured processed data."""
+    """Build causal features and write them as CSV for inspection.
+
+    Args:
+        config: YAML input path.
+        output: Destination feature CSV path.
+    """
     settings = load_config(config)
     matches = _load_processed(settings.data.processed_path)
     features = build_features(matches)
@@ -142,14 +173,24 @@ def predict(
     model: str = typer.Option("lightgbm", "--model", help="lightgbm or dixon_coles."),
     config: Path = typer.Option(Path("configs/default.yaml"), "--config", "-c"),
 ) -> None:
-    """Predict a fixture using the trained bundle (without fitting on request)."""
+    """Predict one future fixture from the saved bundle without retraining.
+
+    Args:
+        home: Canonical home club name.
+        away: Canonical away club name.
+        match_date: ISO YYYY-MM-DD date, after the bundle cutoff.
+        model: Either LightGBM or Dixon–Coles.
+        config: YAML path locating the saved artifact.
+    """
     settings = load_config(config)
     from footballpred.pipeline import load_bundle
 
     bundle = load_bundle(settings.data.model_path)
     teams = bundle["teams"]
     matches = bundle["history"]
+
     def resolve(name: str) -> str:
+        """Match a query team to the exact canonical name stored in the bundle."""
         found = next((team for team in teams if team.casefold() == name.strip().casefold()), None)
         if found is None:
             raise typer.BadParameter(
@@ -161,6 +202,7 @@ def predict(
     from datetime import date as date_type
 
     fixture_date = date_type.fromisoformat(match_date)
+    # ASSUMPTION: no kickoff timestamp is available, so the future fixture is one date row.
     fixture = pd.DataFrame(
         [{"date": pd.Timestamp(fixture_date), "season": str(fixture_date.year),
           "home_team": home_team, "away_team": away_team, "home_goals": 0,
@@ -218,7 +260,11 @@ def predict(
 
 @app.command()
 def teams(config: Path = typer.Option(Path("configs/default.yaml"), "--config", "-c")) -> None:
-    """List canonical teams from the trained model bundle."""
+    """Print the canonical team names supported by the saved bundle.
+
+    Args:
+        config: YAML path locating the saved model bundle.
+    """
     from footballpred.pipeline import load_bundle
 
     settings = load_config(config)

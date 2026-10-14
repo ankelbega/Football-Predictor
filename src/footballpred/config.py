@@ -1,4 +1,8 @@
-"""Configuration loading and validation."""
+"""Load the YAML application configuration into typed settings.
+
+This setup module is used by the CLI and API before ingest, evaluation, model training, or
+serving. Pydantic rejects unknown data keys so misspelled configuration fails early.
+"""
 
 from pathlib import Path
 from typing import Any
@@ -8,7 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class DataConfig(BaseModel):
-    """Settings for source files and dataset outputs."""
+    """Paths, source templates, aliases and timeouts used by data ingestion."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -26,7 +30,7 @@ class DataConfig(BaseModel):
 
 
 class AppConfig(BaseModel):
-    """Top-level application configuration."""
+    """Top-level validated data and evaluation configuration."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -35,7 +39,14 @@ class AppConfig(BaseModel):
 
 
 def load_config(path: str | Path = "configs/default.yaml") -> AppConfig:
-    """Read and validate a YAML configuration file."""
+    """Read a YAML file and validate its keys and values.
+
+    Args:
+        path: Configuration path; defaults to the repository's standard YAML file.
+
+    Returns:
+        Typed AppConfig object with paths converted to Path values.
+    """
     config_path = Path(path)
     with config_path.open(encoding="utf-8") as stream:
         payload: Any = yaml.safe_load(stream)

@@ -1,4 +1,8 @@
-"""FastAPI serving layer; model bundles are loaded once at app construction."""
+"""Serve forecasts from a pre-trained bundle over HTTP.
+
+This API-stage module loads model and match history once when creating the app. Each route
+validates a request, builds only the requested fixture's causal features, and returns probabilities.
+"""
 
 from __future__ import annotations
 
@@ -17,18 +21,24 @@ from footballpred.pipeline import load_bundle
 
 
 class MarketProbabilities(BaseModel):
+    """Three mutually exclusive 1X2 outcome probabilities."""
+
     home_win: float = Field(ge=0, le=1)
     draw: float = Field(ge=0, le=1)
     away_win: float = Field(ge=0, le=1)
 
 
 class Scoreline(BaseModel):
+    """One score pair and its joint probability from the score matrix."""
+
     home_goals: int = Field(ge=0)
     away_goals: int = Field(ge=0)
     probability: float = Field(ge=0, le=1)
 
 
 class PredictionResponse(BaseModel):
+    """Stable JSON response schema shared by both model choices."""
+
     model_config = ConfigDict(extra="forbid")
 
     home_team: str
@@ -46,18 +56,28 @@ class PredictionResponse(BaseModel):
 
 
 class HealthResponse(BaseModel):
+    """API readiness summary, including the fitted-data cutoff."""
+
     status: Literal["ok"]
     model_loaded: bool
     training_data_cutoff: str
 
 
 def create_app(bundle_path: str | Path | None = None) -> FastAPI:
-    """Create API app and load models one time at startup/construction."""
+    """Create the HTTP app and load the fitted bundle once.
+
+    Args:
+        bundle_path: Optional explicit joblib file; otherwise use the configured model path.
+
+    Returns:
+        FastAPI application with health, team listing, and fixture prediction routes.
+    """
     if bundle_path is None:
         settings = load_config()
         model_path = settings.data.model_path
     else:
         model_path = Path(bundle_path)
+    # Load once here; route handlers reuse fitted objects and never train models on a request.
     bundle = load_bundle(model_path)
     models = bundle["models"]
     teams = list(bundle["teams"])
@@ -71,12 +91,22 @@ def create_app(bundle_path: str | Path | None = None) -> FastAPI:
 
     @app.get("/health", response_model=HealthResponse)
     def health() -> HealthResponse:
+        """Report that the application bundle is loaded and its data cutoff.
+
+        Returns:
+            Static readiness and cutoff details; does not run a model prediction.
+        """
         return HealthResponse(
             status="ok", model_loaded=True, training_data_cutoff=training_cutoff
         )
 
     @app.get("/teams", response_model=list[str])
     def list_teams() -> list[str]:
+        """Return canonical team names present in the training data.
+
+        Returns:
+            Sorted team names accepted by ``/predict``.
+        """
         return teams
 
     @app.get("/predict", response_model=PredictionResponse)
@@ -86,8 +116,20 @@ def create_app(bundle_path: str | Path | None = None) -> FastAPI:
         model: Literal["lightgbm", "dixon_coles"] = "lightgbm",
         match_date: date = Query(..., alias="date"),
     ) -> PredictionResponse:
+        """Return fixture probabilities without fitting or using post-cutoff results.
+
+        Args:
+            home: Canonical home team name.
+            away: Canonical away team name.
+            model: LightGBM or Dixon–Coles forecast engine.
+            match_date: Fixture date supplied in the ``date`` query parameter.
+
+        Returns:
+            Valid market probabilities, top scorelines and at most five explanations.
+        """
         home_name = _resolve_team(home, teams)
         away_name = _resolve_team(away, teams)
+        # LEAKAGE GUARD: serving rejects retrospective dates because history contains their labels.
         if pd.Timestamp(match_date) <= pd.to_datetime(bundle["history"]["date"]).max():
             raise HTTPException(
                 status_code=422,
@@ -97,8 +139,8 @@ def create_app(bundle_path: str | Path | None = None) -> FastAPI:
             raise HTTPException(status_code=422, detail="Home and away teams must be different")
         if model not in models:
             raise HTTPException(status_code=400, detail=f"Model '{model}' is not available")
-        # The serve-time feature history is built from stored match history. The initial bundle
-        # stores the complete training data, so the queried fixture is appended as a label-free row.
+        # LEAKAGE GUARD: append a label-free future fixture after the stored training history.
+        # Same-day features are still pre-date snapshots inside the shared feature builder.
         history = bundle["history"].copy()
         fixture = _fixture_stub(match_date, home_name, away_name)
         combined = pd.concat([history, fixture], ignore_index=True, sort=False)
@@ -154,6 +196,15 @@ def create_app(bundle_path: str | Path | None = None) -> FastAPI:
 
 
 def _resolve_team(name: str, teams: list[str]) -> str:
+    """Resolve a case-insensitive request to an exact trained team name.
+
+    Args:
+        name: User-provided team string.
+        teams: Canonical names available in the model bundle.
+
+    Returns:
+        Stored canonical spelling; unknown values raise an HTTP 404.
+    """
     normalized = " ".join(name.strip().split()).casefold()
     candidates = {team.casefold(): team for team in teams}
     if normalized not in candidates:
@@ -165,6 +216,19 @@ def _resolve_team(name: str, teams: list[str]) -> str:
 
 
 def _fixture_stub(match_date: date, home: str, away: str) -> pd.DataFrame:
+    """Create the label-free row needed by feature engineering for one fixture.
+
+    Args:
+        match_date: Requested future fixture date.
+        home: Canonical home club.
+        away: Canonical away club.
+
+    Returns:
+        One-row match-shaped dataframe. Placeholder goals/result are not used as features
+        for this row because the feature builder snapshots before appending same-day results.
+    """
+    # Scores are placeholders solely to satisfy the shared match-shaped feature input. The
+    # feature builder's same-date snapshot prevents them entering this fixture's feature values.
     return pd.DataFrame(
         [{
             "date": pd.Timestamp(match_date),
@@ -179,7 +243,7 @@ def _fixture_stub(match_date: date, home: str, away: str) -> pd.DataFrame:
 
 
 def _load_default_app() -> FastAPI:
-    """Load default model artifact when launching `uvicorn footballpred.api.app:app`."""
+    """Load the configured model artifact for the standard Uvicorn import path."""
     return create_app()
 
 

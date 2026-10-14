@@ -56,10 +56,27 @@ def _metric_row(
     bootstrap_seed: int = 2026,
     bookmaker_reference: np.ndarray | None = None,
 ) -> dict[str, Any]:
+    """Create one multiclass score row and optional paired comparison to market odds.
+
+    Args:
+        model_name: Forecast source label.
+        partition: Validation or test partition.
+        season: Four-digit season identifier.
+        observed: Match dataframe with result and identifiers.
+        predicted: Probability matrix in home/draw/away order.
+        source: Odds source label when this row is the bookmaker baseline.
+        market: Market identifier, normally 1x2.
+        bootstrap_seed: Fixed seed for paired match-level resampling.
+        bookmaker_reference: Optional aligned no-vig market matrix.
+
+    Returns:
+        Metric values and paired model-minus-market log-loss interval when available.
+    """
     truth = outcome_probabilities(observed)
     bookmaker_difference = np.nan
     confidence_low = np.nan
     confidence_high = np.nan
+    # Paired resampling controls match difficulty: both models are scored on each same fixture.
     if model_name != "bookmaker" and bookmaker_reference is not None:
         try:
             model_losses = _per_row_log_loss(observed["result"].to_numpy(), predicted)
@@ -100,7 +117,15 @@ def _metric_row(
 
 
 def _per_row_log_loss(labels: np.ndarray, probabilities: np.ndarray) -> np.ndarray:
-    """Per-match multiclass log losses in H/D/A class order."""
+    """Return one negative log probability per observed outcome.
+
+    Args:
+        labels: Aligned H/D/A outcome codes.
+        probabilities: Three-column matrix in H/D/A order.
+
+    Returns:
+        One per-match log-loss value per row.
+    """
     target = outcome_probabilities(pd.DataFrame({"result": labels}))
     return -np.sum(target * np.log(np.clip(probabilities, 1e-15, 1.0)), axis=1)
 
@@ -112,7 +137,18 @@ def tune_elo(
     home_advantages: list[float],
     initial_rating: float = 1500.0,
 ) -> tuple[EloConfig, pd.DataFrame]:
-    """Choose Elo update parameters by validation log loss only."""
+    """Select K-factor and home advantage by validation log loss.
+
+    Args:
+        training: Earlier chronological matches used to fit each candidate.
+        validation: Later matches used only to compare candidates.
+        k_factors: Candidate rating-update sensitivities.
+        home_advantages: Candidate home rating increments.
+        initial_rating: Rating assigned to unseen teams.
+
+    Returns:
+        Best Elo settings and a candidate-score table sorted by validation loss.
+    """
     results: list[dict[str, float]] = []
     best_config: EloConfig | None = None
     best_loss = float("inf")
@@ -145,7 +181,18 @@ def evaluate_phase2(
     elo_settings: dict[str, Any],
     output_path: str | Path,
 ) -> pd.DataFrame:
-    """Tune Elo on validation; report validation and per-season test metrics."""
+    """Tune Elo on validation and score baselines on chronological test folds.
+
+    Args:
+        matches: Canonical processed match dataframe.
+        validation_season: Season reserved for model selection.
+        test_seasons: Later seasons scored separately in expanding windows.
+        elo_settings: Elo YAML subsection including candidate lists.
+        output_path: Main results CSV; Markdown and tuning files are saved nearby.
+
+    Returns:
+        Rows of multiclass scores for class prior, bookmaker and Elo models.
+    """
     split = season_split(matches, validation_season, test_seasons)
     k_values = [float(value) for value in elo_settings["validation_k_factors"]]
     advantages = [float(value) for value in elo_settings["validation_home_advantages"]]
@@ -194,8 +241,7 @@ def evaluate_phase2(
 
     for season in split.test_seasons:
         test_season_frame = split.test.loc[split.test["season"].astype(str).eq(season)].copy()
-        # Each test season gets a refit on all earlier observed seasons, including validation
-        # and any preceding test year, mirroring expanding-window walk-forward use.
+        # SPLIT GUARD: refit before the first test date, never on the current test season.
         first_test_date = pd.to_datetime(test_season_frame["date"]).min()
         earlier = matches.loc[pd.to_datetime(matches["date"]) < first_test_date]
         prior_model = ClassPriorModel().fit(earlier)
@@ -275,6 +321,21 @@ def _binary_metrics(
     odds_source: str | None = None,
     bookmaker_reference: np.ndarray | None = None,
 ) -> dict[str, Any]:
+    """Create binary-market metrics and optional paired odds comparison.
+
+    Args:
+        model_name: Forecast source label.
+        partition: Validation or test partition.
+        season: Four-digit season identifier.
+        truth: One-dimensional zero/one event labels.
+        probabilities: Aligned positive-event probabilities.
+        market: Market name such as over_2_5 or btts.
+        odds_source: Optional bookmaker price source name.
+        bookmaker_reference: Optional aligned de-vigged event probability vector.
+
+    Returns:
+        Binary scores plus paired model-minus-market loss difference and interval, if available.
+    """
     difference = np.nan
     interval_low = np.nan
     interval_high = np.nan
@@ -289,6 +350,7 @@ def _binary_metrics(
         )
         difference = float(differences.mean())
         if len(differences) > 1:
+            # Paired bootstrap resamples match-level model-minus-market loss differences.
             ci = bootstrap(
                 (differences,),
                 np.mean,
@@ -323,7 +385,18 @@ def evaluate_phase3(
     settings: dict[str, Any],
     output_path: str | Path,
 ) -> pd.DataFrame:
-    """Tune Dixon-Coles decay on validation, then evaluate all requested markets walk-forward."""
+    """Tune Dixon–Coles decay on validation and evaluate three score-derived markets.
+
+    Args:
+        matches: Canonical processed match dataframe.
+        validation_season: Season used only to select time decay.
+        test_seasons: Later chronological folds.
+        settings: Evaluation configuration containing Dixon–Coles options.
+        output_path: Base results path; named Phase 3 files are written nearby.
+
+    Returns:
+        Per-model and per-market metrics for validation and test seasons.
+    """
     split = season_split(matches, validation_season, test_seasons)
     config_settings = settings["dixon_coles"]
     xi_candidates = [float(value) for value in config_settings["validation_xi"]]
@@ -494,8 +567,20 @@ def evaluate_phase4(
     settings: dict[str, Any],
     output_path: str | Path,
 ) -> pd.DataFrame:
-    """Tune LightGBM on the validation season; fit calibrators on validation predictions only."""
+    """Tune LightGBM and evaluate calibrated models on chronological market folds.
+
+    Args:
+        matches: Processed match dataframe.
+        validation_season: Season used for model/calibration selection.
+        test_seasons: Later held-out seasons, refit by expanding window.
+        settings: Nested LightGBM and Dixon–Coles configuration.
+        output_path: Base output path; reports use stable named files in its directory.
+
+    Returns:
+        Metrics for validation and test forecasts across available models and markets.
+    """
     split = season_split(matches, validation_season, test_seasons)
+    # LEAKAGE GUARD: shared features use only prior dates; test labels never update earlier rows.
     feature_frame = build_features(matches)
     # For each model partition, prior history is assembled causally from the earliest match
     # through the rows being evaluated. Shared ex-ante features are independent of test labels.
@@ -736,6 +821,7 @@ def evaluate_phase4(
     for season in split.test_seasons:
         test = split.test.loc[split.test["season"].astype(str).eq(season)].copy()
         first_day = pd.to_datetime(test["date"]).min()
+        # SPLIT GUARD: exclude current test-season outcomes from the expanding-window fit.
         training = matches.loc[pd.to_datetime(matches["date"]) < first_day].copy()
         test_features = all_features.loc[test.index].reset_index(drop=True)
         training_features = all_features.loc[training.index].reset_index(drop=True)
@@ -1001,7 +1087,15 @@ def _plot_reliability(
 
 
 def save_walk_forward_figure(results: pd.DataFrame, path: str | Path) -> None:
-    """Plot per-season 1X2 log loss with the bookmaker as the explicit reference."""
+    """Plot held-out 1X2 log loss by season for market and model forecasts.
+
+    Args:
+        results: Evaluation table with partition, season, market, model and log_loss columns.
+        path: Destination image path.
+
+    Returns:
+        None. A line represents each available model across test seasons.
+    """
     frame = results.loc[
         results["partition"].eq("test") & results["market"].eq("1x2")
     ].copy()
@@ -1048,7 +1142,21 @@ def _write_explainability_artifacts(
     validation_season: str,
     dc_model: DixonColesModel,
 ) -> None:
-    """Save LightGBM global SHAP summary, sample explanations, and DC strength ratings."""
+    """Write global SHAP, sample forecasts, and fitted Dixon–Coles ratings.
+
+    Args:
+        matches: Full processed match history for selecting example fixtures.
+        train: Chronological training rows used for fitted explanations.
+        features: Causal feature table aligned to matches.
+        model: Best validation-tuned LightGBM classifier.
+        validation_features: Validation rows used for global SHAP summary.
+        config: Selected LightGBM fit settings.
+        validation_season: Season supplying three sample fixtures.
+        dc_model: Dixon–Coles model fitted on the training partition.
+
+    Returns:
+        None. CSV, Markdown and PNG artifacts are written under results/ and docs/.
+    """
     importance = compute_global_importance(model, validation_features, max_samples=300)
     save_global_importance(
         importance,
@@ -1087,7 +1195,15 @@ def _write_explainability_artifacts(
 
 
 def _write_explanation_markdown(explanations: list[dict[str, Any]], path: str | Path) -> None:
-    """Render sample predictions and top feature contributions in readable Markdown."""
+    """Render sample probabilities and signed SHAP contributions as Markdown.
+
+    Args:
+        explanations: JSON-compatible mappings returned by ``explain_match``.
+        path: Destination Markdown path.
+
+    Returns:
+        None. SHAP values remain labeled as raw-score contributions, not percentage points.
+    """
     lines = [
         "# Example LightGBM explanations",
         "",
@@ -1123,7 +1239,15 @@ def _write_explanation_markdown(explanations: list[dict[str, Any]], path: str | 
 def _bookmaker_binary_probabilities(
     matches: pd.DataFrame,
 ) -> dict[str, tuple[np.ndarray, str]] | None:
-    """Convert available over/under and BTTS odds into proportional no-margin probabilities."""
+    """Normalize complete two-way odds where the source names the binary market explicitly.
+
+    Args:
+        matches: Match rows carrying optional named O/U or BTTS odds columns.
+
+    Returns:
+        Market mapping to no-vig positive-event probabilities and source label, or None if no
+        complete binary market exists. O/U prices are never treated as BTTS prices.
+    """
     output: dict[str, tuple[np.ndarray, str]] = {}
     # In football-data source conventions, >2.5 fields encode total-goal market only,
     # so don't mistake them for BTTS prices. BTTS is emitted only if explicit BTTS columns exist.
@@ -1148,6 +1272,7 @@ def _bookmaker_binary_probabilities(
             )
             valid = np.isfinite(values).all(axis=1) & (values > 1.0).all(axis=1)
             if valid.all():
+                # NORMALIZATION: divide inverse decimal prices by their sum to remove margin.
                 implied = 1 / values
                 output[market] = (implied[:, 0] / implied.sum(axis=1), label)
                 break
@@ -1155,7 +1280,15 @@ def _bookmaker_binary_probabilities(
 
 
 def _market_bookmaker_probabilities(matches: pd.DataFrame, market: str) -> np.ndarray:
-    """Extract de-vigged market probability for O/U; reject absent market data."""
+    """Extract the Over probability from a complete supported no-vig two-way market.
+
+    Args:
+        matches: Match rows with named positive and negative odds columns.
+        market: Supported market identifier; currently only over_2_5 has source odds.
+
+    Returns:
+        Positive-event probability vector aligned to match rows.
+    """
     column_pairs = {
         "over_2_5": (
             ("b365_over_2.5", "b365_under_2.5"),
@@ -1170,6 +1303,7 @@ def _market_bookmaker_probabilities(matches: pd.DataFrame, market: str) -> np.nd
         values = matches[[positive, negative]].apply(pd.to_numeric, errors="coerce").to_numpy()
         valid = np.isfinite(values).all(axis=1) & (values > 1.0).all(axis=1)
         if valid.all():
+            # NORMALIZATION: proportional removal divides each implied price by pair total.
             implied = 1 / values
             return implied[:, 0] / implied.sum(axis=1)
     raise ValueError(f"No complete bookmaker odds for {market}")
@@ -1178,7 +1312,14 @@ def _market_bookmaker_probabilities(matches: pd.DataFrame, market: str) -> np.nd
 
 
 def _to_markdown(frame: pd.DataFrame) -> str:
-    """Render a compact markdown table without an optional tabulate dependency."""
+    """Render dataframe rows as a Markdown table without optional display dependencies.
+
+    Args:
+        frame: Result dataframe.
+
+    Returns:
+        Header, separator and padded rows as a string.
+    """
     columns = list(frame.columns)
     rows = [
         [str(value) if not isinstance(value, float) else f"{value:.4f}" for value in row]

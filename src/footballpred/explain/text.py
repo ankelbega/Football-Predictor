@@ -1,4 +1,8 @@
-"""Plain-language explanations from pre-match feature deltas and model probabilities."""
+"""Turn a LightGBM forecast and SHAP values into readable match explanations.
+
+This explain-stage module is called by sample-report generation and the prediction API. It
+keeps interpretation on raw model-score scale rather than unsupported probability points.
+"""
 
 from __future__ import annotations
 
@@ -35,11 +39,20 @@ def explain_match(
     away_team: str,
     top_n: int = 5,
 ) -> dict[str, Any]:
-    """Build a probabilistic prediction plus faithful SHAP contributions on raw model scale.
+    """Build a match forecast and rank its largest signed SHAP contributions.
 
-    SHAP tree contributions for LightGBM explain its class raw scores (logit-like margins),
-    not direct percentage-point changes in normalized probability. The text explicitly
-    communicates this distinction rather than inventing percentage-point attribution.
+    Args:
+        model: Fitted LightGBM 1X2 model.
+        feature_row: One causal pre-match feature row.
+        home_team: Human-readable home club name.
+        away_team: Human-readable away club name.
+        top_n: Maximum number of absolute contributions to return.
+
+    Returns:
+        JSON-compatible probabilities, predicted class, explanation scale and feature details.
+
+    SHAP contributions explain class raw scores, not normalized probability points; the response
+    states this distinction rather than implying direct percentage-point attribution.
     """
     probabilities = model.predict_proba(feature_row)[0]
     class_index = int(np.argmax(probabilities))
@@ -79,6 +92,7 @@ def explain_match(
 
 
 def _describe_feature(feature: str, value: object, shap_value: float) -> str:
+    """Format one feature value and its sign without claiming a probability-point change."""
     label = FEATURE_LABELS.get(feature, feature.replace("_", " "))
     if pd.isna(value):
         detail = "is unavailable"
