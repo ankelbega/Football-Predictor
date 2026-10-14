@@ -19,6 +19,7 @@ class DataConfig(BaseModel):
     processed_path: Path
     validation_report_path: Path
     stats_path: Path
+    results_path: Path = Path("results/model-comparison.csv")
     request_timeout_seconds: int = Field(default=30, gt=0)
     team_aliases: dict[str, str] = Field(default_factory=dict)
 
@@ -29,6 +30,7 @@ class AppConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     data: DataConfig
+    evaluation: dict[str, Any] = Field(default_factory=dict)
 
 
 def load_config(path: str | Path = "configs/default.yaml") -> AppConfig:

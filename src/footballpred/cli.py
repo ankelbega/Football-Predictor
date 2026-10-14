@@ -9,6 +9,7 @@ import pandas as pd
 import typer
 
 from footballpred.config import load_config
+from footballpred.evaluate.report import evaluate_phase2
 from footballpred.ingest.download import ingest_dataset
 from footballpred.ingest.validate import write_summary, write_validation_report
 
@@ -57,6 +58,22 @@ def validate(config: Path = typer.Option(Path("configs/default.yaml"), "--config
         f"Rows: {report['rows']:,}; warnings: {len(report['warnings'])}; "
         f"draw rate: {summary['draw_rate']:.3f}"
     )
+
+
+@app.command()
+def evaluate(config: Path = typer.Option(Path("configs/default.yaml"), "--config", "-c")) -> None:
+    """Evaluate Phase 2 baselines and Elo using configured temporal seasons."""
+    settings = load_config(config)
+    dataset = _load_processed(settings.data.processed_path)
+    section = settings.model_dump()["evaluation"]
+    results = evaluate_phase2(
+        dataset,
+        str(section["validation_season"]),
+        [str(season) for season in section["test_seasons"]],
+        section["elo"],
+        settings.data.results_path,
+    )
+    typer.echo(f"Saved {len(results)} metric rows to {settings.data.results_path}")
 
 
 if __name__ == "__main__":
