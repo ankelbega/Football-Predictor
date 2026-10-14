@@ -21,6 +21,7 @@ data:
   validation_report_path: results/data-validation.json
   stats_path: results/data-summary.json
   results_path: results/model-comparison.csv
+  model_path: models/football-model.joblib
   request_timeout_seconds: 30
 evaluation:
   validation_season: "2324"

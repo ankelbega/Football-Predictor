@@ -27,4 +27,29 @@ The source schema varies between seasons. The ingestion code validates required 
 
 ## Project status
 
-The remaining phases add time-aware baselines and models, leakage-free features, proper scoring rules, calibration, explainability, walk-forward evaluation, CLI/API functionality, and results generated from reproducible code. This is an educational project, not betting advice.
+The project now includes time-aware baselines and models, leakage-free features, proper scoring rules, calibration, explainability, walk-forward evaluation, and CLI/API functionality. This is an educational project, not betting advice.
+
+## CLI and API
+
+```bash
+footballpred download
+footballpred validate
+footballpred build-features
+footballpred evaluate
+footballpred train
+footballpred predict --home "Arsenal" --away "Chelsea" --date 2025-03-01
+uvicorn footballpred.api.app:app --host 127.0.0.1 --port 8000
+```
+
+The API exposes `/health`, `/teams`, and `/predict`; interactive OpenAPI docs are at `/docs`.
+The service loads `models/football-model.joblib` once at startup and does not retrain per request.
+That artifact is gitignored and is generated with `footballpred train`.
+
+Docker requires the processed dataset and a locally trained model artifact:
+
+```bash
+docker build -t football-predictor .
+docker run --rm -p 8000:8000 -v "${PWD}/models:/app/models" football-predictor
+```
+
+`make all` reproduces the current pipeline from download through evaluation and training.

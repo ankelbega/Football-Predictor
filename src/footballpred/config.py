@@ -20,6 +20,7 @@ class DataConfig(BaseModel):
     validation_report_path: Path
     stats_path: Path
     results_path: Path = Path("results/model-comparison.csv")
+    model_path: Path = Path("models/football-model.joblib")
     request_timeout_seconds: int = Field(default=30, gt=0)
     team_aliases: dict[str, str] = Field(default_factory=dict)
 
