@@ -9,7 +9,11 @@ import pandas as pd
 import typer
 
 from footballpred.config import load_config
-from footballpred.evaluate.report import evaluate_phase2, evaluate_phase3
+from footballpred.evaluate.report import (
+    evaluate_phase2,
+    evaluate_phase3,
+    evaluate_phase4,
+)
 from footballpred.ingest.download import ingest_dataset
 from footballpred.ingest.validate import write_summary, write_validation_report
 
@@ -84,6 +88,17 @@ def evaluate(config: Path = typer.Option(Path("configs/default.yaml"), "--config
     typer.echo(
         f"Saved {len(phase3_results)} market metric rows to "
         "results/phase3-market-comparison.csv"
+    )
+    phase4_results = evaluate_phase4(
+        dataset,
+        str(section["validation_season"]),
+        [str(season) for season in section["test_seasons"]],
+        section,
+        settings.data.results_path,
+    )
+    typer.echo(
+        f"Saved {len(phase4_results)} LightGBM metric rows to "
+        "results/phase4-model-comparison.csv"
     )
 
 

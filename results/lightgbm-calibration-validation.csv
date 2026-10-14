@@ -1,0 +1,9 @@
+market,calibrator,validation_log_loss
+1x2,raw,0.94658738
+1x2,temperature,0.94658632
+1x2,platt,0.94154699
+1x2,isotonic,0.90607530
+over_2_5,raw,0.67499991
+over_2_5,isotonic_diagnostic,0.64329241
+btts,raw,0.68740193
+btts,isotonic_diagnostic,0.65085001

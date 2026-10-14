@@ -48,6 +48,17 @@ evaluation:
       - 0.0018
       - 0.0036
     score_optimization_maxiter: 400
+  lightgbm:
+    random_state: 2026
+    validation_estimators:
+      - 120
+      - 220
+    validation_num_leaves:
+      - 7
+      - 15
+    learning_rate: 0.035
+    min_child_samples: 25
+    reg_lambda: 2.0
   # Explicit aliases are applied after whitespace normalization; add season-specific variants here.
   team_aliases:
     Man Utd: Manchester United

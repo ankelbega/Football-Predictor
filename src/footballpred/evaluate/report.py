@@ -19,17 +19,24 @@ from footballpred.evaluate.metrics import (
     ranked_probability_score,
 )
 from footballpred.evaluate.splits import season_split
+from footballpred.features.builder import build_features
 from footballpred.models.baselines import (
     BookmakerModel,
     ClassPriorModel,
     bookmaker_probabilities,
     outcome_probabilities,
 )
+from footballpred.models.calibration import (
+    apply_multiclass_calibrator,
+    select_binary_isotonic,
+    select_multiclass_calibrator,
+)
 from footballpred.models.dixon_coles import (
     DixonColesConfig,
     DixonColesModel,
 )
 from footballpred.models.elo import EloConfig, EloModel
+from footballpred.models.lgbm import LightGBM1X2, LightGBMBinary, LightGBMConfig, train_targets
 
 LOGGER = logging.getLogger(__name__)
 
@@ -365,6 +372,269 @@ def evaluate_phase3(
         encoding="utf-8",
     )
     return results
+
+
+def evaluate_phase4(
+    matches: pd.DataFrame,
+    validation_season: str,
+    test_seasons: list[str],
+    settings: dict[str, Any],
+    output_path: str | Path,
+) -> pd.DataFrame:
+    """Tune LightGBM on the validation season; fit calibrators on validation predictions only."""
+    split = season_split(matches, validation_season, test_seasons)
+    feature_frame = build_features(matches)
+    # For each model partition, prior history is assembled causally from the earliest match
+    # through the rows being evaluated. Shared ex-ante features are independent of test labels.
+    all_features = feature_frame
+    validation_indices = split.validation.index.to_numpy()
+    train_indices = split.train.index.to_numpy()
+    validation_features = all_features.loc[validation_indices].reset_index(drop=True)
+    train_features = all_features.loc[train_indices].reset_index(drop=True)
+    tuning_options = settings["lightgbm"]
+    candidates: list[dict[str, float]] = []
+    best_config: LightGBMConfig | None = None
+    best_loss = float("inf")
+    best_model: LightGBM1X2 | None = None
+    for estimators in tuning_options["validation_estimators"]:
+        for leaves in tuning_options["validation_num_leaves"]:
+            candidate_config = LightGBMConfig(
+                n_estimators=int(estimators),
+                learning_rate=float(tuning_options["learning_rate"]),
+                num_leaves=int(leaves),
+                min_child_samples=int(tuning_options["min_child_samples"]),
+                reg_lambda=float(tuning_options["reg_lambda"]),
+                random_state=int(tuning_options["random_state"]),
+            )
+            model = LightGBM1X2(candidate_config).fit(train_features, split.train)
+            probabilities = model.predict_proba(validation_features)
+            score = log_loss(split.validation["result"].to_numpy(), probabilities)
+            candidates.append(
+                {
+                    "n_estimators": int(estimators),
+                    "num_leaves": int(leaves),
+                    "validation_log_loss": score,
+                }
+            )
+            if score < best_loss:
+                best_config, best_loss, best_model = candidate_config, score, model
+    if best_config is None or best_model is None:
+        raise ValueError("No LightGBM tuning candidates supplied")
+
+    # Fit calibrators on predictions made over the validation season only; all candidate
+    # models are trained strictly on seasons before validation, so these are out-of-sample.
+    calibration_raw = best_model.predict_proba(validation_features)
+    calibration_name, multiclass_calibrator, calibration_scores = select_multiclass_calibrator(
+        calibration_raw,
+        split.validation["result"].to_numpy(),
+    )
+    validation_calibrated = apply_multiclass_calibrator(
+        calibration_name, multiclass_calibrator, calibration_raw
+    )
+    validation_truth = outcome_probabilities(split.validation)
+    rows: list[dict[str, Any]] = []
+    for model_name, probabilities in (
+        ("lightgbm", calibration_raw),
+        (f"lightgbm_calibrated_{calibration_name}", validation_calibrated),
+    ):
+        rows.append(
+            _metric_row(
+                model_name,
+                "validation",
+                validation_season,
+                split.validation,
+                probabilities,
+            )
+        )
+
+    target_validation = train_targets(split.validation)
+    binary_calibrators: dict[str, tuple[str, object | None, dict[str, float]]] = {}
+    binary_calibration_rows: list[dict[str, Any]] = []
+    binary_config = best_config
+    for market, target in target_validation.items():
+        binary = LightGBMBinary(binary_config).fit(
+            train_features, train_targets(split.train)[market]
+        )
+        predicted = binary.predict_proba(validation_features)
+        binary_name, binary_calibrator, binary_scores = select_binary_isotonic(
+            predicted,
+            target,
+        )
+        calibration_rows = [
+            {"calibrator": "raw", "market": market, "validation_log_loss": binary_scores["raw"]},
+            {
+                "calibrator": "isotonic_diagnostic",
+                "market": market,
+                "validation_log_loss": binary_scores["isotonic"],
+            },
+        ]
+        binary_calibration_rows.extend(calibration_rows)
+        binary_calibrators[market] = (binary_name, binary_calibrator, binary_scores)
+        calibration_market_name, calibrator, _ = binary_calibrators[market]
+        validation_market_holdout = predicted
+        adjusted = (
+            calibrator.predict_proba(predicted)
+            if calibrator is not None and calibration_market_name == "isotonic"
+            else predicted
+        )
+        rows.append(
+            _binary_metrics(
+                "lightgbm",
+                "validation",
+                validation_season,
+                target,
+                validation_market_holdout,
+                market,
+            )
+        )
+        rows.append(
+            _binary_metrics(
+                f"lightgbm_calibrated_{calibration_market_name}",
+                "validation",
+                validation_season,
+                target,
+                adjusted,
+                market,
+            )
+        )
+
+    # walk-forward test records by season; fit feature generation on available history through
+    # each fold using chronological transforms where future labels cannot affect earlier features.
+    for season in split.test_seasons:
+        test = split.test.loc[split.test["season"].astype(str).eq(season)].copy()
+        first_day = pd.to_datetime(test["date"]).min()
+        training = matches.loc[pd.to_datetime(matches["date"]) < first_day].copy()
+        test_features = all_features.loc[test.index].reset_index(drop=True)
+        training_features = all_features.loc[training.index].reset_index(drop=True)
+        fitted = LightGBM1X2(best_config).fit(training_features, training)
+        raw_probabilities = fitted.predict_proba(test_features)
+        calibrated_probabilities = apply_multiclass_calibrator(
+            calibration_name, multiclass_calibrator, raw_probabilities
+        )
+        rows.append(_metric_row("lightgbm", "test", season, test, raw_probabilities))
+        rows.append(
+            _metric_row(
+                f"lightgbm_calibrated_{calibration_name}",
+                "test",
+                season,
+                test,
+                calibrated_probabilities,
+            )
+        )
+
+        train_targets_by_market = train_targets(training)
+        test_targets = train_targets(test)
+        for market, train_target in train_targets_by_market.items():
+            binary = LightGBMBinary(best_config).fit(training_features, train_target)
+            test_probability = binary.predict_proba(test_features)
+            rows.append(
+                _binary_metrics(
+                    "lightgbm",
+                    "test",
+                    season,
+                    test_targets[market],
+                    test_probability,
+                    market,
+                )
+            )
+            calibration_market_name, calibrator, _ = binary_calibrators[market]
+            if calibration_market_name == "isotonic" and calibrator is not None:
+                test_probability_calibrated = calibrator.predict_proba(test_probability)
+            else:
+                test_probability_calibrated = test_probability
+            rows.append(
+                _binary_metrics(
+                    f"lightgbm_calibrated_{calibration_market_name}",
+                    "test",
+                    season,
+                    test_targets[market],
+                    test_probability_calibrated,
+                    market,
+                )
+            )
+
+    results = pd.DataFrame(rows)
+    destination = Path(output_path).with_name("phase4-model-comparison.csv")
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    results.to_csv(destination, index=False, float_format="%.8f")
+    tuning = pd.DataFrame(candidates).sort_values("validation_log_loss")
+    tuning.to_csv(
+        destination.with_name("lightgbm-validation-tuning.csv"),
+        index=False,
+        float_format="%.8f",
+    )
+    calibration_table = [
+        {"market": "1x2", "calibrator": name, "validation_log_loss": score}
+        for name, score in calibration_scores.items()
+    ]
+    calibration_table.extend(binary_calibration_rows)
+    pd.DataFrame(calibration_table).to_csv(
+        destination.with_name("lightgbm-calibration-validation.csv"),
+        index=False,
+        float_format="%.8f",
+    )
+    destination.with_suffix(".md").write_text(
+        "# Phase 4 model comparison\n\n"
+        "Generated by `footballpred evaluate`. LightGBM hyperparameters are chosen by validation "
+        "1X2 log loss. Temperature scaling, one-vs-rest Platt, and class-wise isotonic are "
+        "compared using validation predictions from models trained on earlier seasons. Isotonic "
+        "is diagnostic only due to overfit risk on the same calibration sample. "
+        "A parametric calibrator is retained only if validation log loss improves. "
+        "Test seasons are expanding-window folds.\n\n"
+        + _to_markdown(results)
+        + "\n\nSee `lightgbm-validation-tuning.csv` and `lightgbm-calibration-validation.csv` for "
+        "validation-only choices.\n",
+        encoding="utf-8",
+    )
+    _plot_reliability(
+        validation_truth,
+        validation_calibrated,
+        Path("docs/reliability-validation.png"),
+        title="1X2 validation reliability — LightGBM selected calibration",
+    )
+    return results
+
+
+def _plot_reliability(
+    truth: np.ndarray,
+    probabilities: np.ndarray,
+    path: Path,
+    title: str,
+) -> None:
+    """Save class-wise reliability curves for H/D/A probabilities."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    figure, axis = plt.subplots(figsize=(6.5, 6.0))
+    axis.plot([0, 1], [0, 1], linestyle="--", color="grey", label="ideal")
+    labels = ("Home", "Draw", "Away")
+    edges = np.linspace(0.0, 1.0, 11)
+    for index, label in enumerate(labels):
+        predicted_bin: list[float] = []
+        observed_bin: list[float] = []
+        for left, right in zip(edges[:-1], edges[1:], strict=True):
+            selected = (probabilities[:, index] >= left) & (probabilities[:, index] < right)
+            if right == 1.0:
+                selected |= probabilities[:, index] == 1.0
+            if selected.any():
+                predicted_bin.append(float(probabilities[selected, index].mean()))
+                observed_bin.append(float(truth[selected, index].mean()))
+        axis.plot(predicted_bin, observed_bin, marker="o", label=label)
+    axis.set(
+        xlim=(0, 1),
+        ylim=(0, 1),
+        xlabel="Mean predicted probability",
+        ylabel="Observed frequency",
+    )
+    axis.set_title(title)
+    axis.grid(alpha=0.2)
+    axis.legend()
+    figure.tight_layout()
+    figure.savefig(path, dpi=150)
+    plt.close(figure)
 
 
 def _bookmaker_binary_probabilities(

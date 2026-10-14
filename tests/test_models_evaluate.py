@@ -10,11 +10,13 @@ from footballpred.evaluate.metrics import (
     ranked_probability_score,
 )
 from footballpred.evaluate.splits import season_split
+from footballpred.features.builder import build_features
 from footballpred.models.baselines import (
     BookmakerModel,
     ClassPriorModel,
     bookmaker_probabilities,
 )
+from footballpred.models.calibration import select_multiclass_calibrator
 from footballpred.models.dixon_coles import (
     DixonColesConfig,
     DixonColesModel,
@@ -29,6 +31,7 @@ from footballpred.models.elo import (
     elo_expected_score,
     update_ratings,
 )
+from footballpred.models.lgbm import LightGBM1X2, LightGBMBinary, LightGBMConfig, train_targets
 
 
 def small_matches() -> pd.DataFrame:
@@ -154,3 +157,70 @@ def test_dixon_coles_fit_and_predict_markets() -> None:
     assert len(markets) == 2
     assert all(0 <= entry["over_2_5"] <= 1 for entry in markets)
     assert model.training_cutoff_ == pd.Timestamp("2022-08-03")
+
+
+def test_feature_pipeline_is_invariant_to_future_results() -> None:
+    frame = pd.DataFrame(
+        {
+            "date": pd.to_datetime(
+                ["2024-01-01", "2024-01-02", "2024-01-02", "2024-01-03"]
+            ),
+            "season": ["2324"] * 4,
+            "home_team": ["A", "B", "C", "A"],
+            "away_team": ["B", "A", "D", "C"],
+            "home_goals": [1, 2, 0, 1],
+            "away_goals": [0, 1, 1, 0],
+            "HS": [10, 12, 8, 15],
+            "AS": [7, 8, 9, 6],
+            "HST": [4, 6, 2, 7],
+            "AST": [3, 4, 4, 2],
+        }
+    )
+    original_features = build_features(frame)
+    changed_future = frame.copy()
+    changed_future.loc[3, ["home_goals", "away_goals", "HS", "AS", "HST", "AST"]] = [
+        9, 0, 30, 1, 15, 0
+    ]
+    updated_features = build_features(changed_future)
+    pd.testing.assert_frame_equal(
+        original_features.iloc[:3].reset_index(drop=True),
+        updated_features.iloc[:3].reset_index(drop=True),
+        check_dtype=False,
+    )
+
+
+def test_same_day_match_results_do_not_affect_each_others_features() -> None:
+    frame = pd.DataFrame(
+        {
+            "date": pd.to_datetime(["2024-01-01", "2024-01-02", "2024-01-02", "2024-01-03"]),
+            "season": ["2324"] * 4,
+            "home_team": ["A", "B", "C", "A"],
+            "away_team": ["B", "A", "D", "C"],
+            "home_goals": [1, 2, 0, 1],
+            "away_goals": [0, 1, 1, 0],
+        }
+    )
+    changed = frame.copy()
+    changed.loc[1, ["home_goals", "away_goals"]] = [0, 7]
+    before, after = build_features(frame), build_features(changed)
+    pd.testing.assert_series_equal(before.loc[2].drop("match_id"), after.loc[2].drop("match_id"))
+
+
+def test_lightgbm_classifiers_and_validation_calibration_probabilities() -> None:
+    matches = pd.concat([small_matches()] * 24, ignore_index=True)
+    matches["date"] = pd.date_range("2021-01-01", periods=len(matches), freq="D")
+    features = build_features(matches)
+    config = LightGBMConfig(n_estimators=15, num_leaves=7, min_child_samples=3)
+    multiclass = LightGBM1X2(config).fit(features.iloc[:60], matches.iloc[:60])
+    probabilities = multiclass.predict_proba(features.iloc[60:])
+    assert probabilities.shape == (len(matches) - 60, 3)
+    assert np.allclose(probabilities.sum(axis=1), 1.0, atol=1e-6)
+    binary_targets = train_targets(matches)
+    binary = LightGBMBinary(config).fit(features.iloc[:60], binary_targets["over_2_5"][:60])
+    binary_probabilities = binary.predict_proba(features.iloc[60:])
+    assert ((binary_probabilities >= 0) & (binary_probabilities <= 1)).all()
+    name, _, scores = select_multiclass_calibrator(
+        probabilities, matches.iloc[60:]["result"].to_numpy()
+    )
+    assert name in {"raw", "temperature", "platt", "isotonic"}
+    assert scores["raw"] >= 0
