@@ -10,6 +10,7 @@ from footballpred.evaluate.metrics import (
     ranked_probability_score,
 )
 from footballpred.evaluate.splits import season_split
+from footballpred.explain.text import explain_match
 from footballpred.features.builder import build_features
 from footballpred.models.baselines import (
     BookmakerModel,
@@ -31,6 +32,7 @@ from footballpred.models.elo import (
     elo_expected_score,
     update_ratings,
 )
+from footballpred.models.ensemble import combine_probabilities, tune_ensemble_weight
 from footballpred.models.lgbm import LightGBM1X2, LightGBMBinary, LightGBMConfig, train_targets
 
 
@@ -224,3 +226,26 @@ def test_lightgbm_classifiers_and_validation_calibration_probabilities() -> None
     )
     assert name in {"raw", "temperature", "platt", "isotonic"}
     assert scores["raw"] >= 0
+
+
+def test_ensemble_weight_tuning_returns_valid_probability_vectors() -> None:
+    labels = np.array(["H", "D", "A"])
+    dc = np.array([[0.6, 0.25, 0.15], [0.3, 0.4, 0.3], [0.1, 0.25, 0.65]])
+    lgb = np.array([[0.55, 0.3, 0.15], [0.25, 0.5, 0.25], [0.15, 0.25, 0.6]])
+    weight, scores = tune_ensemble_weight(labels, dc, lgb)
+    combined = combine_probabilities(dc, lgb, weight)
+    assert weight in scores
+    assert np.allclose(combined.sum(axis=1), 1.0, atol=1e-6)
+
+
+def test_shap_local_explanation_is_labeled_as_raw_score_not_pp() -> None:
+    matches = pd.concat([small_matches()] * 24, ignore_index=True)
+    matches["date"] = pd.date_range("2021-01-01", periods=len(matches), freq="D")
+    features = build_features(matches)
+    model = LightGBM1X2(
+        LightGBMConfig(n_estimators=10, num_leaves=7, min_child_samples=3)
+    ).fit(features.iloc[:60], matches.iloc[:60])
+    explanation = explain_match(model, features.iloc[[60]], "A", "B", top_n=3)
+    assert len(explanation["top_features"]) == 3
+    assert "not percentage points" in explanation["explanation_scale"]
+    assert set(explanation["probabilities"]) == {"home_win", "draw", "away_win"}

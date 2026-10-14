@@ -19,6 +19,8 @@ from footballpred.evaluate.metrics import (
     ranked_probability_score,
 )
 from footballpred.evaluate.splits import season_split
+from footballpred.explain.shap_utils import compute_global_importance, save_global_importance
+from footballpred.explain.text import explain_match
 from footballpred.features.builder import build_features
 from footballpred.models.baselines import (
     BookmakerModel,
@@ -36,6 +38,7 @@ from footballpred.models.dixon_coles import (
     DixonColesModel,
 )
 from footballpred.models.elo import EloConfig, EloModel
+from footballpred.models.ensemble import combine_probabilities, tune_ensemble_weight
 from footballpred.models.lgbm import LightGBM1X2, LightGBMBinary, LightGBMConfig, train_targets
 
 LOGGER = logging.getLogger(__name__)
@@ -446,6 +449,83 @@ def evaluate_phase4(
                 probabilities,
             )
         )
+    for model_name, probabilities in (
+        ("class_prior", ClassPriorModel().fit(split.train).predict_proba(split.validation)),
+        ("bookmaker", bookmaker_probabilities(split.validation)[0]),
+        (
+            "elo",
+            EloModel(EloConfig()).fit(split.train).predict_proba(split.validation),
+        ),
+    ):
+        rows.append(
+            _metric_row(
+                model_name,
+                "validation",
+                validation_season,
+                split.validation,
+                probabilities,
+            )
+        )
+    for market, target in train_targets(split.validation).items():
+        rows.append(
+            _binary_metrics(
+                "class_prior",
+                "validation",
+                validation_season,
+                target,
+                np.full(len(target), float(train_targets(split.train)[market].mean())),
+                market,
+            )
+        )
+        if market == "over_2_5":
+            rows.append(
+                _binary_metrics(
+                    "bookmaker",
+                    "validation",
+                    validation_season,
+                    target,
+                    _market_bookmaker_probabilities(split.validation, market),
+                    market,
+                    "bet365_over_under",
+                )
+            )
+
+    validation_dc = DixonColesModel(
+        DixonColesConfig(
+            xi=float(settings["dixon_coles"]["validation_xi"][1]),
+            max_goals=int(settings["dixon_coles"]["max_goals"]),
+            maxiter=int(settings["dixon_coles"]["score_optimization_maxiter"]),
+        )
+    ).fit(split.train)
+    validation_dc_probabilities = validation_dc.predict_proba(split.validation)
+    rows.append(
+        _metric_row(
+            "dixon_coles",
+            "validation",
+            validation_season,
+            split.validation,
+            validation_dc_probabilities,
+        )
+    )
+    ensemble_weight, ensemble_scores = tune_ensemble_weight(
+        split.validation["result"].to_numpy(),
+        validation_dc_probabilities,
+        calibration_raw,
+    )
+    ensemble_validation = combine_probabilities(
+        validation_dc_probabilities, calibration_raw, ensemble_weight
+    )
+    rows.append(
+        _metric_row(
+            "ensemble", "validation", validation_season, split.validation, ensemble_validation
+        )
+    )
+    pd.DataFrame(
+        [
+            {"lightgbm_weight": weight, "validation_log_loss": score}
+            for weight, score in ensemble_scores.items()
+        ]
+    ).to_csv("results/ensemble-validation-weights.csv", index=False, float_format="%.8f")
 
     target_validation = train_targets(split.validation)
     binary_calibrators: dict[str, tuple[str, object | None, dict[str, float]]] = {}
@@ -521,12 +601,68 @@ def evaluate_phase4(
                 calibrated_probabilities,
             )
         )
+        test_dc = DixonColesModel(
+            DixonColesConfig(
+                xi=float(settings["dixon_coles"]["validation_xi"][1]),
+                max_goals=int(settings["dixon_coles"]["max_goals"]),
+                maxiter=int(settings["dixon_coles"]["score_optimization_maxiter"]),
+            )
+        ).fit(training)
+        test_dc_probabilities = test_dc.predict_proba(test)
+        ensemble_test = combine_probabilities(
+            test_dc_probabilities, raw_probabilities, ensemble_weight
+        )
+        rows.append(_metric_row("ensemble", "test", season, test, ensemble_test))
+        for baseline_name, baseline_probabilities in (
+            ("class_prior", ClassPriorModel().fit(training).predict_proba(test)),
+            ("bookmaker", bookmaker_probabilities(test)[0]),
+            ("dixon_coles", test_dc_probabilities),
+        ):
+            rows.append(
+                _metric_row(
+                    baseline_name,
+                    "test",
+                    season,
+                    test,
+                    baseline_probabilities,
+                )
+            )
+
+        test_elo = EloModel(EloConfig()).fit(training)
+        rows.append(
+            _metric_row("elo", "test", season, test, test_elo.predict_proba(test))
+        )
 
         train_targets_by_market = train_targets(training)
         test_targets = train_targets(test)
         for market, train_target in train_targets_by_market.items():
             binary = LightGBMBinary(best_config).fit(training_features, train_target)
             test_probability = binary.predict_proba(test_features)
+            rows.append(
+                _binary_metrics(
+                    "class_prior",
+                    "test",
+                    season,
+                    test_targets[market],
+                    np.full(
+                        len(test),
+                        float(train_target.mean()),
+                    ),
+                    market,
+                )
+            )
+            if market == "over_2_5":
+                rows.append(
+                    _binary_metrics(
+                        "bookmaker",
+                        "test",
+                        season,
+                        test_targets[market],
+                        _market_bookmaker_probabilities(test, market),
+                        market,
+                        "bet365_over_under",
+                    )
+                )
             rows.append(
                 _binary_metrics(
                     "lightgbm",
@@ -592,6 +728,16 @@ def evaluate_phase4(
         Path("docs/reliability-validation.png"),
         title="1X2 validation reliability — LightGBM selected calibration",
     )
+    _write_explainability_artifacts(
+        matches=matches,
+        train=split.train,
+        features=all_features,
+        model=best_model,
+        validation_features=validation_features,
+        config=best_config,
+        validation_season=validation_season,
+        dc_model=validation_dc,
+    )
     return results
 
 
@@ -637,6 +783,88 @@ def _plot_reliability(
     plt.close(figure)
 
 
+def _write_explainability_artifacts(
+    matches: pd.DataFrame,
+    train: pd.DataFrame,
+    features: pd.DataFrame,
+    model: LightGBM1X2,
+    validation_features: pd.DataFrame,
+    config: LightGBMConfig,
+    validation_season: str,
+    dc_model: DixonColesModel,
+) -> None:
+    """Save LightGBM global SHAP summary, sample explanations, and DC strength ratings."""
+    importance = compute_global_importance(model, validation_features, max_samples=300)
+    save_global_importance(
+        importance,
+        "results/shap-global-importance.csv",
+        "docs/shap-global-importance.png",
+    )
+    sample = matches.loc[matches["season"].astype(str).eq(validation_season)].head(3)
+    explanations = []
+    model_features = build_features(matches)
+    explanation_model = LightGBM1X2(config).fit(
+        features.loc[train.index].reset_index(drop=True), train
+    )
+    for index, row in sample.iterrows():
+        feature_row = model_features.loc[[index]].reset_index(drop=True)
+        explanations.append(
+            explain_match(
+                explanation_model,
+                feature_row,
+                str(row["home_team"]),
+                str(row["away_team"]),
+            )
+        )
+    _write_explanation_markdown(explanations, "docs/sample-explanations.md")
+    strengths = dc_model.team_strengths()
+    strengths.to_csv("results/dixon-coles-team-strengths.csv", index=False, float_format="%.8f")
+    Path("docs/dixon-coles-team-strengths.md").write_text(
+        "# Dixon–Coles fitted team strengths\n\n"
+        "Centered attack/defence log strengths from the model fitted on the training partition. "
+        "Positive attack indicates scoring above the training-team mean; positive defence means "
+        "higher conceded-goal rate (weaker defence). Home advantage is the shared "
+        "log-rate term.\n\n"
+        + _to_markdown(strengths.head(12))
+        + "\n",
+        encoding="utf-8",
+    )
+
+
+def _write_explanation_markdown(explanations: list[dict[str, Any]], path: str | Path) -> None:
+    """Render sample predictions and top feature contributions in readable Markdown."""
+    lines = [
+        "# Example LightGBM explanations",
+        "",
+        "Generated from the validation season with a model trained on earlier seasons.",
+        "SHAP values are contributions to the selected class raw score, not probability points.",
+        "",
+    ]
+    for number, item in enumerate(explanations, start=1):
+        probabilities = item["probabilities"]
+        lines.extend(
+            [
+                f"## Example {number}: {item['home_team']} vs {item['away_team']}",
+                "",
+                f"Most likely outcome: **{item['most_likely_outcome']}**.",
+                "",
+                "Probabilities: "
+                f"home {probabilities['home_win']:.1%}, draw {probabilities['draw']:.1%}, "
+                f"away {probabilities['away_win']:.1%}.",
+                "",
+                "Top contributing features:",
+            ]
+        )
+        for feature in item["top_features"]:
+            lines.append(
+                f"- `{feature['label']}`: {feature['direction']} selected-class raw score "
+                f"({feature['shap_value']:+.4f}); {feature['interpretation']}"
+            )
+        lines.append("")
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
+    Path(path).write_text("\n".join(lines), encoding="utf-8")
+
+
 def _bookmaker_binary_probabilities(
     matches: pd.DataFrame,
 ) -> dict[str, tuple[np.ndarray, str]] | None:
@@ -669,6 +897,27 @@ def _bookmaker_binary_probabilities(
                 output[market] = (implied[:, 0] / implied.sum(axis=1), label)
                 break
     return output or None
+
+
+def _market_bookmaker_probabilities(matches: pd.DataFrame, market: str) -> np.ndarray:
+    """Extract de-vigged market probability for O/U; reject absent market data."""
+    column_pairs = {
+        "over_2_5": (
+            ("b365_over_2.5", "b365_under_2.5"),
+            ("avg_over_2.5", "avg_under_2.5"),
+        )
+    }
+    if market not in column_pairs:
+        raise ValueError(f"No bookmaker binary market available for {market}")
+    for positive, negative in column_pairs[market]:
+        if positive not in matches or negative not in matches:
+            continue
+        values = matches[[positive, negative]].apply(pd.to_numeric, errors="coerce").to_numpy()
+        valid = np.isfinite(values).all(axis=1) & (values > 1.0).all(axis=1)
+        if valid.all():
+            implied = 1 / values
+            return implied[:, 0] / implied.sum(axis=1)
+    raise ValueError(f"No complete bookmaker odds for {market}")
 
 
 
