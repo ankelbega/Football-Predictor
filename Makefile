@@ -32,6 +32,10 @@ api:
 error-analysis:
 	python scripts/error_analysis.py
 
+# Generate runtime timings.
+runtime-report:
+	python scripts/runtime_report.py
+
 # Run the complete pytest suite.
 test:
 	pytest -q
