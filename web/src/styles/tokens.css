@@ -1,0 +1,90 @@
+:root {
+  --color-bg: #f7f5f0;
+  --color-surface: #fffefb;
+  --color-surface-2: #f1eee7;
+  --color-ink: #1c1b19;
+  --color-ink-muted: #6b675f;
+  --color-ink-subtle: #8a857b;
+  --color-hairline: #dcd8cf;
+  --color-hairline-strong: #bfb8ab;
+  --color-accent: #1d4e6b;
+  --color-accent-hover: #163c52;
+  --color-home: #1d4e6b;
+  --color-draw: #a39e93;
+  --color-away: #c9822b;
+  --color-success: #2f6f54;
+  --color-warning: #9a6a1f;
+  --color-danger: #8a3b2f;
+
+  --font-serif: "Newsreader Variable", Georgia, serif;
+  --font-sans: "Instrument Sans Variable", "Helvetica Neue", sans-serif;
+  --font-mono: "IBM Plex Mono", "SFMono-Regular", monospace;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-md: 1.125rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 1.875rem;
+  --text-3xl: 2.375rem;
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4rem;
+  --space-9: 6rem;
+
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --rule: 1px;
+  --rule-strong: 2px;
+  --motion-fast: 150ms;
+  --motion-base: 250ms;
+  --motion-slow: 300ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+[data-theme="dark"] {
+  --color-bg: #141412;
+  --color-surface: #1b1b18;
+  --color-surface-2: #23231f;
+  --color-ink: #ecebe6;
+  --color-ink-muted: #a7a39a;
+  --color-ink-subtle: #7f7b72;
+  --color-hairline: #2d2c28;
+  --color-hairline-strong: #434038;
+  --color-accent: #7aa2bf;
+  --color-accent-hover: #96b7ce;
+  --color-home: #7aa2bf;
+  --color-draw: #7c786f;
+  --color-away: #d7a053;
+  --color-success: #62a37d;
+  --color-warning: #c89a4a;
+  --color-danger: #d27b6a;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-bg: #141412;
+    --color-surface: #1b1b18;
+    --color-surface-2: #23231f;
+    --color-ink: #ecebe6;
+    --color-ink-muted: #a7a39a;
+    --color-ink-subtle: #7f7b72;
+    --color-hairline: #2d2c28;
+    --color-hairline-strong: #434038;
+    --color-accent: #7aa2bf;
+    --color-accent-hover: #96b7ce;
+    --color-home: #7aa2bf;
+    --color-draw: #7c786f;
+    --color-away: #d7a053;
+    --color-success: #62a37d;
+    --color-warning: #c89a4a;
+    --color-danger: #d27b6a;
+  }
+}

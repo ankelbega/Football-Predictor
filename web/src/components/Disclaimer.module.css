@@ -1,0 +1,8 @@
+.disclaimer {
+  max-width: 65ch;
+  margin-top: var(--space-6);
+  color: var(--color-ink-muted);
+  font-size: var(--text-sm);
+  border-top: var(--rule) solid var(--color-hairline);
+  padding-top: var(--space-3);
+}
