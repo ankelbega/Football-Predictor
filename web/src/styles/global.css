@@ -25,6 +25,7 @@ body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  overflow-x: clip;
 }
 
 a {
@@ -288,6 +289,85 @@ input:focus-visible {
   z-index: 1;
 }
 
+.predict-meta {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.predict-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  gap: var(--space-6);
+  margin-top: var(--space-5);
+}
+
+.predict-column h3 {
+  font-family: var(--font-serif);
+  font-size: 1.375rem;
+  font-weight: 500;
+  line-height: 1.2;
+  margin: 0 0 var(--space-3);
+}
+
+.goals-markets {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.ratings-table {
+  max-width: 560px;
+  margin-top: var(--space-3);
+}
+
+.ratings-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.ratings-table th,
+.ratings-table td {
+  padding: var(--space-2) var(--space-2);
+  border-bottom: var(--rule) solid var(--color-hairline);
+  text-align: right;
+}
+
+.ratings-table th:first-child,
+.ratings-table td:first-child {
+  text-align: left;
+}
+
+.ratings-table thead th {
+  font-weight: 600;
+  background: var(--color-surface-2);
+}
+
+.ratings-note {
+  margin: var(--space-3) 0 0;
+  color: var(--color-ink-muted);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+@media (max-width: 1023px) {
+  .predict-columns {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .predict-controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .predict-controls {
+    grid-template-columns: 1fr;
+  }
+}
+
 .is-selected {
   background: var(--color-accent);
   color: #fff;
@@ -321,8 +401,10 @@ input:focus-visible {
 
 .prediction-output h3 {
   font-family: var(--font-serif);
-  font-size: var(--text-xl);
-  margin: var(--space-5) 0 var(--space-3);
+  font-size: 1.375rem;
+  font-weight: 500;
+  line-height: 1.2;
+  margin: var(--space-6) 0 var(--space-3);
 }
 
 .prediction-empty,

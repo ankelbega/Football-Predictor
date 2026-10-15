@@ -12,14 +12,25 @@ interface ScorelineListProps {
 }
 
 export function ScorelineList({ items, displayMode }: ScorelineListProps) {
+  const maximum = items.reduce(
+    (currentMaximum, item) => Math.max(currentMaximum, item.probability),
+    0,
+  ) || 1;
+
   return (
     <ol className={styles.list}>
       {items.map((item) => (
-        <li key={`${item.home_goals}-${item.away_goals}`} className={styles.item}>
-          <span className={styles.score}>{item.home_goals}&ndash;{item.away_goals}</span>
+        <li key={`${item.home_goals}-${item.away_goals}`} className={styles.row}>
+          <span className={styles.score}>{item.home_goals}\u2013{item.away_goals}</span>
+          <span className={styles.barTrack}>
+            <span
+              className={styles.bar}
+              style={{ width: `${(item.probability / maximum) * 100}%` }}
+            />
+          </span>
           <span className={styles.probability}>
             {(item.probability * 100).toFixed(1)}%
-            {displayMode === "oneInN" ? ` (\u2248 1 in ${Math.max(1, Math.round(1 / item.probability))})` : ""}
+            {displayMode === "oneInN" ? ` (${Math.max(1, Math.round(1 / item.probability))})` : ""}
           </span>
         </li>
       ))}

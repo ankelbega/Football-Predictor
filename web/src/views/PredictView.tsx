@@ -10,8 +10,8 @@ import { useI18n } from "../i18n/useI18n";
 import { useHealth } from "../hooks/useHealth";
 import { useTeams } from "../hooks/useTeams";
 import { usePrediction } from "../hooks/usePrediction";
-import { addDaysToDate, cutoffDateOnly, formatIntlDate, formatIsoDate, formatProbability } from "../lib/format";
-import type { PredictionResponse } from "../lib/types";
+import { addDaysToDate, cutoffDateOnly, formatIntlDate, formatIsoDate } from "../lib/format";
+import type { ExplanatoryFeature, PredictionResponse } from "../lib/types";
 
 const MODELS = ["lightgbm", "dixon_coles"] as const;
 
@@ -116,8 +116,9 @@ export function PredictView() {
             ))}
           </select>
         </label>
-
-        <div className="predict-display-toggle" role="group" aria-label="Display format">
+      </div>
+      <div className="predict-meta">
+        <div className="predict-display-toggle" role="group" aria-label={t("predict.displayPercent")}>
           <button
             type="button"
             className={displayMode === "percent" ? "text-button is-selected" : "text-button"}
@@ -182,37 +183,40 @@ function PredictionResult({ prediction, displayMode }: { prediction: PredictionR
       </div>
 
       <h3>{t("predict.outlookHeading")}</h3>
-      <p>
-        {t("predict.homeOutcome")} {formatProbability(prediction.probabilities_1x2.home_win, displayMode)} |{" "}
-        {t("predict.drawOutcome")} {formatProbability(prediction.probabilities_1x2.draw, displayMode)} |{" "}
-        {t("predict.awayOutcome")} {formatProbability(prediction.probabilities_1x2.away_win, displayMode)}
-      </p>
       <ProbabilityBar
         segments={[
-          { label: t("predict.homeOutcome"), value: prediction.probabilities_1x2.home_win, color: "var(--color-home)" },
+          { label: `${prediction.home_team} ${t("predict.winWord")}`, value: prediction.probabilities_1x2.home_win, color: "var(--color-home)" },
           { label: t("predict.drawOutcome"), value: prediction.probabilities_1x2.draw, color: "var(--color-draw)" },
-          { label: t("predict.awayOutcome"), value: prediction.probabilities_1x2.away_win, color: "var(--color-away)" },
+          { label: `${prediction.away_team} ${t("predict.winWord")}`, value: prediction.probabilities_1x2.away_win, color: "var(--color-away)" },
         ]}
+        displayMode={displayMode}
       />
 
-      <h3>{t("predict.goalsHeading")}</h3>
-      <MarketBar
-        label="over/under"
-        firstLabel={t("predict.overLabel").replace("{threshold}", "2.5")}
-        firstValue={prediction.over_2_5}
-        secondLabel={t("predict.underLabel").replace("{threshold}", "2.5")}
-        secondValue={prediction.under_2_5}
-      />
-      <MarketBar
-        label="both teams to score"
-        firstLabel={t("predict.bttsYes")}
-        firstValue={prediction.btts_yes}
-        secondLabel={t("predict.bttsNo")}
-        secondValue={prediction.btts_no}
-      />
-
-      <h3>{t("predict.scorelinesHeading")}</h3>
-      <ScorelineList items={prediction.most_likely_scorelines} displayMode={displayMode} />
+      <div className="predict-columns">
+        <section className="predict-column">
+          <h3>{t("predict.goalsHeading")}</h3>
+          <div className="goals-markets">
+            <MarketBar
+              label="over/under"
+              firstLabel={t("predict.overLabel").replace("{threshold}", "2.5")}
+              firstValue={prediction.over_2_5}
+              secondLabel={t("predict.underLabel").replace("{threshold}", "2.5")}
+              secondValue={prediction.under_2_5}
+            />
+            <MarketBar
+              label="both teams to score"
+              firstLabel={t("predict.bttsYes")}
+              firstValue={prediction.btts_yes}
+              secondLabel={t("predict.bttsNo")}
+              secondValue={prediction.btts_no}
+            />
+          </div>
+        </section>
+        <section className="predict-column">
+          <h3>{t("predict.scorelinesHeading")}</h3>
+          <ScorelineList items={prediction.most_likely_scorelines} displayMode={displayMode} />
+        </section>
+      </div>
 
       {prediction.explanatory_features.length > 0 ? (
         <>
@@ -221,7 +225,11 @@ function PredictionResult({ prediction, displayMode }: { prediction: PredictionR
               ? t("predict.explanation.lightgbm")
               : t("predict.explanation.dixonColes")}
           </h3>
-          <ExplanatoryFeatureList model={prediction.model} items={ideals} />
+          {prediction.model === "lightgbm" ? (
+            <ExplanatoryFeatureList model={prediction.model} items={ideals} />
+          ) : (
+            <DixonRatings homeTeam={prediction.home_team} awayTeam={prediction.away_team} features={prediction.explanatory_features} />
+          )}
           {prediction.model === "lightgbm" ? (
             <p className="explanatory-scale">{t("predict.contributionRawScore")}</p>
           ) : null}
@@ -230,9 +238,68 @@ function PredictionResult({ prediction, displayMode }: { prediction: PredictionR
 
       <p className="prediction-footnote">
         {t("predict.modelLabel")
-          .replace("{model}", prediction.model)
+          .replace("{model}", prediction.model === "lightgbm" ? "LightGBM" : "Dixon-Coles")
           .replace("{date}", formatIntlDate(cutoffDateOnly(prediction.training_data_cutoff), locale))}
       </p>
     </>
   );
 }
+
+function ratingValue(features: ExplanatoryFeature[], key: string): number | null {
+  const item = features.find((feature) => feature.feature === key);
+  return typeof item?.value === "number" ? item.value : null;
+}
+
+function displayRating(value: number | null): string {
+  return value === null ? "—" : value.toFixed(2);
+}
+
+function DixonRatings({
+  homeTeam,
+  awayTeam,
+  features,
+}: {
+  homeTeam: string;
+  awayTeam: string;
+  features: ExplanatoryFeature[];
+}) {
+const homeAttack = ratingValue(features, "home_attack");
+  const awayAttack = ratingValue(features, "away_attack");
+  const homeDefence = ratingValue(features, "home_defence");
+  const awayDefence = ratingValue(features, "away_defence");
+  const homeAdvantage = ratingValue(features, "home_advantage_log_rate");
+
+  return (
+    <div className="ratings-table">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Rating</th>
+            <th scope="col" className="num">{homeTeam}</th>
+            <th scope="col" className="num">{awayTeam}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row">Attack</th>
+            <td className="num">{displayRating(homeAttack)}</td>
+            <td className="num">{displayRating(awayAttack)}</td>
+          </tr>
+          <tr>
+            <th scope="row">Defence</th>
+            <td className="num">{displayRating(homeDefence)}</td>
+            <td className="num">{displayRating(awayDefence)}</td>
+          </tr>
+          <tr>
+            <th scope="row">Home advantage</th>
+            <td className="num" colSpan={2}>{displayRating(homeAdvantage)}</td>
+          </tr>
+        </tbody>
+      </table>
+      <p className="ratings-note">
+        Attack and defence are centred log-strengths (zero is league average); home advantage is a log-rate increment.
+      </p>
+    </div>
+  );
+}
+

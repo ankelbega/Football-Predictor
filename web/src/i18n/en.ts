@@ -35,7 +35,8 @@ export const en = {
   "predict.goalsHeading": "Goals",
   "predict.scorelinesHeading": "Most likely scorelines",
   "predict.explanation.lightgbm": "Why the model leans this way (LightGBM)",
-  "predict.explanation.dixonColes": "Team ratings used by Dixon-Coles",
+  "predict.explanation.dixonColes": "How the model rates these teams",
+  "predict.winWord": "win",
   "predict.contributionRawScore":
     "Contributions are to the model's raw score, not percentage points.",
   "predict.modelLabel": "Model: {model}. Trained on matches up to {date}.",

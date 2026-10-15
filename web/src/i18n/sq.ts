@@ -35,7 +35,8 @@ export const sq = {
   "predict.goalsHeading": "Golat",
   "predict.scorelinesHeading": "Rezultate më të mundshme",
   "predict.explanation.lightgbm": "Pse modeli ka këtë qëndrim (LightGBM)",
-  "predict.explanation.dixonColes": "Vlerësime të ekipit, të përdorura nga Dixon-Coles",
+  "predict.explanation.dixonColes": "Si i vlerëson modeli këto ekipe",
+  "predict.winWord": "fitore",
   "predict.contributionRawScore":
     "Kontributet janë mbi rezultatin e papërpunuar të modelit, jo mbi pikat përqindje.",
   "predict.modelLabel": "Modeli: {model}. Të dhëna deri më {date}.",
