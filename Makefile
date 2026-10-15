@@ -36,6 +36,10 @@ error-analysis:
 runtime-report:
 	python scripts/runtime_report.py
 
+# Check documentation links and references.
+docs-check:
+	python scripts/check_docs.py
+
 # Run the complete pytest suite.
 test:
 	pytest -q

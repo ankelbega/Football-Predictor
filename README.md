@@ -144,6 +144,17 @@ docker build -t football-predictor .
 docker run --rm -p 8000:8000 -v "${PWD}/models:/app/models" football-predictor
 ```
 
+## Documentation
+
+Additional documentation and generated reports:
+
+- `docs/CODE_GUIDE.md` �?" repository map, pipeline trace, safeguards and glossary.
+- `docs/MODEL_CARD.md` �?" model details, intended use, metrics and limitations.
+- `docs/DATA_CARD.md` �?" sources, cleaning, row counts and missing-value rates.
+- `docs/INTERVIEW_NOTES.md` �?" honest talking points and questions.
+- `docs/ERROR_ANALYSIS.md` �?" slice-level error analysis and reliability tables.
+- `docs/RUNTIME.md` �?" measured stage timings and environment details.
+
 ## Project structure
 
 ```text
