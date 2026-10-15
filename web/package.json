@@ -10,6 +10,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "export:performance": "python ../scripts/export_web_performance.py",
     "test": "vitest run",
     "test:watch": "vitest",
     "e2e": "playwright test",

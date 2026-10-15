@@ -1,0 +1,69 @@
+.card-block {
+  margin-top: var(--space-6);
+  max-width: 800px;
+}
+
+.card-block h2 {
+  font-family: var(--font-serif);
+  font-size: var(--text-xl);
+  margin: 0 0 var(--space-2);
+}
+
+.season-block {
+  margin-top: var(--space-4);
+}
+
+.season-block h3 {
+  font-family: var(--font-serif);
+  font-size: var(--text-md);
+  margin: var(--space-3) 0 var(--space-2);
+}
+
+.metric-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  margin-top: var(--space-2);
+}
+
+.metric-table th,
+.metric-table td {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: var(--rule) solid var(--color-hairline);
+  text-align: right;
+}
+
+.metric-table th:first-child,
+.metric-table td:first-child {
+  text-align: left;
+}
+
+.metric-table th {
+  color: var(--color-ink);
+  font-weight: 600;
+  background: var(--color-surface-2);
+}
+
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.is-best {
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  border: var(--rule) solid var(--color-hairline);
+  border-radius: var(--radius-md);
+}
+
+.card-block__note {
+  color: var(--color-ink-muted);
+  font-size: var(--text-sm);
+  margin: var(--space-2) 0 0;
+}

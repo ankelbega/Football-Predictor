@@ -1,0 +1,14 @@
+.longList {
+  columns: 2;
+  column-gap: var(--space-5);
+  list-style: none;
+  padding: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+@media (max-width: 640px) {
+  .longList {
+    columns: 1;
+  }
+}
