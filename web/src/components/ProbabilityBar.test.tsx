@@ -13,6 +13,6 @@ describe("ProbabilityBar", () => {
         ]}
       />,
     );
-    expect(screen.getByText("Home 54%")).toBeInTheDocument();
+    expect(screen.getByText("54.0%")).toBeInTheDocument();
   });
 });

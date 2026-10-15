@@ -1,5 +1,13 @@
 @import "./tokens.css";
 
+:root {
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -50,22 +58,29 @@ input:focus-visible {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
-  padding-block: var(--space-3);
+  min-height: 64px;
+  padding-block: var(--space-2);
 }
 
 .wordmark {
   font-family: var(--font-serif);
   font-size: var(--text-xl);
-  font-weight: 700;
+  font-weight: 600;
   color: var(--color-ink);
   letter-spacing: -0.01em;
+}
+
+.site-header__group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  min-width: 0;
 }
 
 .site-nav {
   display: flex;
   gap: var(--space-4);
-  flex: 1;
-  justify-content: center;
+  align-items: center;
 }
 
 .site-nav__link {
@@ -75,8 +90,9 @@ input:focus-visible {
 }
 
 .site-nav__link[aria-current="page"] {
-  color: var(--color-ink);
+  color: var(--color-accent);
   text-decoration: underline;
+  text-decoration-color: var(--color-accent);
   text-underline-offset: 4px;
 }
 
@@ -148,17 +164,19 @@ input:focus-visible {
 
 .view__title {
   font-family: var(--font-serif);
-  font-size: var(--text-3xl);
-  font-weight: 700;
-  line-height: 1.1;
-  letter-spacing: -0.01em;
+  font-size: clamp(2rem, 4vw, 2.75rem);
+  font-weight: 600;
+  line-height: 1.05;
+  letter-spacing: -0.015em;
   margin: 0 0 var(--space-3);
 }
 
 .view__lede {
   color: var(--color-ink-muted);
-  font-size: var(--text-lg);
-  margin: 0 0 var(--space-5);
+  font-size: var(--text-md);
+  line-height: 1.5;
+  max-width: 60ch;
+  margin: 0 0 var(--space-6);
 }
 
 .placeholder-card {
@@ -174,8 +192,10 @@ input:focus-visible {
 
 .predict-view__intro h1 {
   font-family: var(--font-serif);
-  font-size: var(--text-3xl);
-  line-height: 1.1;
+  font-size: clamp(2rem, 4vw, 2.75rem);
+  font-weight: 600;
+  line-height: 1.05;
+  letter-spacing: -0.015em;
   margin: 0 0 var(--space-2);
 }
 
@@ -204,19 +224,68 @@ input:focus-visible {
 
 .predict-field input,
 .predict-field select {
-  min-height: 44px;
+  min-height: 48px;
   border: var(--rule) solid var(--color-hairline);
   border-radius: var(--radius-md);
   background: var(--color-surface);
   color: var(--color-ink);
   font: inherit;
-  padding: 0 var(--space-3);
+  line-height: 1;
+  padding-inline: var(--space-3);
+  padding-block: var(--space-2);
+  appearance: none;
+}
+
+.predict-field select {
+  min-width: 0;
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%);
+  background-position: calc(100% - 18px) calc(50% - 2px);
+  background-size: 6px 6px;
+  background-repeat: no-repeat;
+  padding-right: 2.5rem;
+}
+
+.predict-field input[type="date"]::-webkit-calendar-picker-indicator {
+  opacity: 0.7;
+  cursor: pointer;
 }
 
 .predict-display-toggle {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
+  display: inline-flex;
+  align-items: stretch;
+  align-self: end;
+  height: 48px;
+  border: var(--rule) solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+.predict-display-toggle button {
+  border: 0;
+  background: transparent;
+  color: var(--color-ink-muted);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  padding-inline: var(--space-3);
+  min-height: 48px;
+  border-radius: 0;
+}
+
+.predict-display-toggle button.is-selected {
+  background: var(--color-surface-2);
+  color: var(--color-ink);
+  font-weight: 600;
+}
+
+.predict-display-toggle button + button {
+  border-left: var(--rule) solid var(--color-hairline);
+}
+
+.predict-display-toggle button:focus-visible {
+  z-index: 1;
 }
 
 .is-selected {

@@ -10,7 +10,7 @@ import { useI18n } from "../i18n/useI18n";
 import { useHealth } from "../hooks/useHealth";
 import { useTeams } from "../hooks/useTeams";
 import { usePrediction } from "../hooks/usePrediction";
-import { addDaysToDate, cutoffDateOnly, formatIsoDate, formatProbability } from "../lib/format";
+import { addDaysToDate, cutoffDateOnly, formatIntlDate, formatIsoDate, formatProbability } from "../lib/format";
 import type { PredictionResponse } from "../lib/types";
 
 const MODELS = ["lightgbm", "dixon_coles"] as const;
@@ -160,13 +160,13 @@ export function PredictView() {
         ) : null}
       </div>
 
-      <Disclaimer text="Estimates only. Not betting advice and not a guarantee of the result." />
+      <Disclaimer text={t("footer.disclaimerEstimates")} />
     </section>
   );
 }
 
 function PredictionResult({ prediction, displayMode }: { prediction: PredictionResponse; displayMode: "percent" | "oneInN" }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const ideals = prediction.explanatory_features.map((item) => ({
     ...item,
     direction: item.direction ?? "raised",
@@ -177,7 +177,7 @@ function PredictionResult({ prediction, displayMode }: { prediction: PredictionR
       <div className="section-header">
         <h2>{prediction.home_team} vs {prediction.away_team}</h2>
         <p>
-          {formatIsoDate(prediction.match_date)} | {t("predict.model")}: {prediction.model}
+          {formatIntlDate(prediction.match_date, locale)} | {t("predict.model")}: {prediction.model}
         </p>
       </div>
 
@@ -231,7 +231,7 @@ function PredictionResult({ prediction, displayMode }: { prediction: PredictionR
       <p className="prediction-footnote">
         {t("predict.modelLabel")
           .replace("{model}", prediction.model)
-          .replace("{date}", formatIsoDate(cutoffDateOnly(prediction.training_data_cutoff)))}
+          .replace("{date}", formatIntlDate(cutoffDateOnly(prediction.training_data_cutoff), locale))}
       </p>
     </>
   );

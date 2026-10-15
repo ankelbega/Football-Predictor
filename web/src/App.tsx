@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useI18n } from "./i18n/useI18n";
+import { Container } from "./components/Container";
 import { PredictView } from "./views/PredictView";
 import { PerformanceView } from "./views/PerformanceView";
 import { MethodView } from "./views/MethodView";
@@ -29,11 +30,13 @@ function Header() {
 
   return (
     <header className="site-header">
-      <div className="container site-header__inner">
-        <Link className="wordmark" to="/">
-          {t("app.name")}
-        </Link>
-        <nav className="site-nav" aria-label="Primary">
+      <Container>
+        <div className="site-header__inner">
+          <div className="site-header__group">
+            <Link className="wordmark" to="/">
+              {t("app.name")}
+            </Link>
+            <nav className="site-nav" aria-label="Primary">
           <Link aria-current={isActive("/") ? "page" : undefined} className="site-nav__link" to="/">
             {t("nav.predict")}
           </Link>
@@ -44,7 +47,8 @@ function Header() {
             {t("nav.method")}
           </Link>
         </nav>
-        <div className="site-controls">
+          </div>
+          <div className="site-controls">
           <button type="button" className="text-button" onClick={toggleTheme} aria-label={t("controls.themeToggle")}>
             {theme === "dark" ? t("controls.darkTheme") : t("controls.lightTheme")}
           </button>
@@ -57,7 +61,8 @@ function Header() {
             {locale === "en" ? "EN" : "SQ"}
           </button>
         </div>
-      </div>
+        </div>
+      </Container>
     </header>
   );
 }
@@ -66,7 +71,7 @@ function Footer() {
   const { t } = useI18n();
   return (
     <footer className="site-footer">
-      <div className="container">
+      <Container>
         <p>{t("footer.sourceCredit")}. {t("footer.licence")}</p>
         <p className="site-footer__disclaimer">{t("footer.disclaimerEstimates")}</p>
         <p>
@@ -74,7 +79,7 @@ function Footer() {
             {t("footer.sourceCode") ?? "Source code"}
           </a>
         </p>
-      </div>
+      </Container>
     </footer>
   );
 }
@@ -84,13 +89,15 @@ function App() {
     <>
       <Header />
       <main id="main-content">
-        <Routes>
+        <Container>
+          <Routes>
           <Route path="/" element={<PredictView />} />
           <Route path="/performance" element={<PerformanceView />} />
           <Route path="/method" element={<MethodView />} />
           <Route path="/styleguide" element={<StyleguideView />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </Container>
       </main>
       <Footer />
     </>
