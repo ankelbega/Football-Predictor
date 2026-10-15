@@ -172,6 +172,14 @@ function PredictionResult({ prediction, displayMode }: { prediction: PredictionR
     ...item,
     direction: item.direction ?? "raised",
   }));
+  const predictedProbabilities = prediction.probabilities_1x2;
+  const explainedOutcome =
+    predictedProbabilities.away_win > predictedProbabilities.home_win &&
+      predictedProbabilities.away_win >= predictedProbabilities.draw
+      ? `${prediction.away_team} ${t("predict.winWord")}`
+      : predictedProbabilities.draw > predictedProbabilities.home_win
+        ? t("predict.drawOutcome")
+        : `${prediction.home_team} ${t("predict.winWord")}`;
 
   return (
     <>
@@ -226,13 +234,10 @@ function PredictionResult({ prediction, displayMode }: { prediction: PredictionR
               : t("predict.explanation.dixonColes")}
           </h3>
           {prediction.model === "lightgbm" ? (
-            <ExplanatoryFeatureList model={prediction.model} items={ideals} />
+            <ExplanatoryFeatureList model={prediction.model} items={ideals} explainedOutcome={explainedOutcome} />
           ) : (
             <DixonRatings homeTeam={prediction.home_team} awayTeam={prediction.away_team} features={prediction.explanatory_features} />
           )}
-          {prediction.model === "lightgbm" ? (
-            <p className="explanatory-scale">{t("predict.contributionRawScore")}</p>
-          ) : null}
         </>
       ) : null}
 
