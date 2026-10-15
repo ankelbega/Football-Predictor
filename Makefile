@@ -28,6 +28,10 @@ evaluate:
 api:
 	uvicorn footballpred.api.app:app --host 0.0.0.0 --port 8000
 
+# Generate error-analysis tables and figures.
+error-analysis:
+	python scripts/error_analysis.py
+
 # Run the complete pytest suite.
 test:
 	pytest -q
