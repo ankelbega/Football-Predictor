@@ -1,4 +1,5 @@
 import styles from "./ScorelineList.module.css";
+import { formatScoreline } from "../lib/format";
 
 interface ScorelineItem {
   home_goals: number;
@@ -21,7 +22,7 @@ export function ScorelineList({ items, displayMode }: ScorelineListProps) {
     <ol className={styles.list}>
       {items.map((item) => (
         <li key={`${item.home_goals}-${item.away_goals}`} className={styles.row}>
-          <span className={styles.score}>{item.home_goals}\u2013{item.away_goals}</span>
+          <span className={styles.score}>{formatScoreline(item.home_goals, item.away_goals)}</span>
           <span className={styles.barTrack}>
             <span
               className={styles.bar}

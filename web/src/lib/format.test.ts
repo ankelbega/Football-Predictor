@@ -3,6 +3,7 @@ import {
   addDaysToDate,
   formatIsoDate,
   formatProbability,
+  formatScoreline,
 } from "./format";
 
 describe("format", () => {
@@ -14,5 +15,12 @@ describe("format", () => {
   it("formats ISO dates and date offsets", () => {
     expect(formatIsoDate("2026-05-24")).toBe("24 May 2026");
     expect(addDaysToDate("2026-05-24", 1)).toBe("2026-05-25");
+  });
+});
+
+describe("formatScoreline", () => {
+  it("renders an en dash", () => {
+    expect(formatScoreline(1, 1)).toBe("1\u20131");
+    expect(formatScoreline(1, 1).includes("\\")).toBe(false);
   });
 });
