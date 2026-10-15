@@ -1,0 +1,121 @@
+export const sq = {
+  "app.name": "Parashikuesi i Futbollit",
+  "nav.predict": "Parashikim",
+  "nav.performance": "Rendiment",
+  "nav.method": "Metoda",
+  "controls.themeToggle": "Ndrysho motivin e ngjyrave",
+  "controls.lightTheme": "E dritë",
+  "controls.darkTheme": "E Errët",
+  "controls.languageToggle": "Ndrysho gjuhën",
+  "footer.sourceCredit": "Burimi i të dhënave: football-data.co.uk",
+  "footer.licence": "Software nën licencën MIT.",
+  "footer.trainingCutOff": "Të dhëna deri më {date}",
+  "footer.sourceCode": "Kodi burimor",
+  "footer.disclaimerEstimates":
+    "Vetëm vlerësime. Nuk është këshillim bastesh dhe nuk garanton rezultatin.",
+
+  "predict.title": "Parashiko një ndeshje të ardhshme",
+  "predict.lead": "Zgjidh dy skuadra dhe një datë ndeshjeje pas kufirit të të dhënave të modelit.",
+  "predict.homeTeam": "Kryesuesi",
+  "predict.awayTeam": "Mysafiri",
+  "predict.fixtureDate": "Data e ndeshjes",
+  "predict.model": "Modeli",
+  "predict.displayPercent": "Përqindje",
+  "predict.displayOneInN": "1 në N",
+  "predict.submitting": "Duke llogaritur...",
+  "predict.loadingClubs": "Duke lexuar klubet...",
+  "predict.chooseClub": "Zgjidh një klub",
+  "predict.sameTeam": "Zgjidh dy skuadra të ndryshme.",
+  "predict.noClubList": "Nuk u ngarkua lista e klubeve.",
+  "predict.idle": "Zgjidh dy skuadra për të parë pasqyrën.",
+  "predict.connectionError":
+    "Nuk u lidh me shërbimin e parashikimit. Nise me `uvicorn footballpred.api.app:app --host 127.0.0.1 --port 8000` dhe rifresko.",
+  "predict.dateTooEarly": "Data e parashikimit duhet të jetë pas {date}.",
+  "predict.outlookHeading": "Pasqyrë e ndeshjes",
+  "predict.goalsHeading": "Golat",
+  "predict.scorelinesHeading": "Rezultate më të mundshme",
+  "predict.explanation.lightgbm": "Pse modeli ka këtë qëndrim (LightGBM)",
+  "predict.explanation.dixonColes": "Vlerësime të ekipit, të përdorura nga Dixon-Coles",
+  "predict.contributionRawScore":
+    "Kontributet janë mbi rezultatin e papërpunuar të modelit, jo mbi pikat përqindje.",
+  "predict.modelLabel": "Modeli: {model}. Të dhëna deri më {date}.",
+  "predict.homeOutcome": "Fitore shtëpi",
+  "predict.drawOutcome": "Barazim",
+  "predict.awayOutcome": "Fitore mysafir",
+  "predict.overLabel": "Mbi {threshold}",
+  "predict.underLabel": "Nën {threshold}",
+  "predict.bttsYes": "BTTS po",
+  "predict.bttsNo": "BTTS jo",
+
+  "performance.title": "Rendiment",
+  "performance.lead":
+    "Rezultate të sigurta nga tabelat e ruajtura. Vetëm vlerësime dhe jo garanci për të ardhmen.",
+  "performance.oneXTwo": "1X2",
+  "performance.overUnder": "Mbi / nën 2.5",
+  "performance.btts": "Të dyja ekipet shënojnë",
+  "performance.lowerLogLoss":
+    "Vetëm ndarjet test. Loss-i log më i vogël është më i mirë; vlera më e vogël për çdo sezon është e nënvijuara.",
+  "performance.walkForwardTitle": "Zgjerim i vlerësimit kronologjik",
+  "performance.walkForwardNote":
+    "Secila sezon vlerësohet një për një mbi 380 ndeshje të mbajtura jashtë. Hollësitë janë në tabelën më poshtë.",
+  "performance.walkForwardHeading": "Ndasitja sezonale",
+  "performance.reliabilityTitle": "Besueshmëria",
+  "performance.reliabilityNote":
+    "Diagnostikët isotropikë, vetëm për validim, mbahen si diagnostikë dhe jo si rezultate test.",
+  "performance.calibrationNote": "Shënim mbi kalibrimin: Platt përmirësoi loss-in log për 1X2 në validim.",
+  "performance.smallSamples":
+    " mostra të vogla: 380 ndeshje për çdo sezon test. Intervalet janë të gjera dhe renditja është e pasigurt.",
+  "performance.season": "Sezoni",
+  "performance.model": "Modeli",
+  "performance.matches": "Ndeshje",
+  "performance.logLoss": "Log loss",
+  "performance.brierScore": "Brier score",
+  "performance.accuracy": "Saktësi",
+  "performance.rps": "RPS",
+
+  "method.title": "Metoda",
+  "method.intro":
+    "Ky projekt parashikon ndeshje futbolli nga të dhënat historike publike. Statistikat janë reale, nga testime të sigurta; vlerësimet mbeten të pasigurta vend që premtime.",
+  "method.dataTitle": "Të dhënat dhe fushëveprimi",
+  "method.dataBody":
+    "Vendimi mbulon nga 16 Gusht 2014 deri më 24 Maj 2026, mbi 4,560 ndeshje dhe 35 klube. Çdo kërkesë parashikimi pas asaj date është jashtë mostrës së regresionit të bundle-it të përgatitur.",
+  "method.dataBody2":
+    "Rezultatet prodhohen me dritare në zgjerim: 2023/24 është validim, kurse 2024/25 dhe 2025/26 testohen një sezon për herë, me nga 380 ndeshje secili.",
+  "method.modelsTitle": "Modelet e krahasuara",
+  "method.leakageTitle": "Kontrolle rrjedhjeje",
+  "method.leakageBody":
+    "Simptomi ndërtesë nga ndeshjet me data strikt para ndeshjes së parashikuar. API refuzon çdo datë në ose para kufirit, si dhe ndeshjen me ekipin të njëjtë në shtëpi. Nuk përdoren kuotat e bastoreve si veçori të modelit.",
+  "method.calibrationTitle": "Kalibrimi",
+  "method.calibrationBody":
+    "U krahasuan kalibrimet e papërpunuara, shkallëzuar temperaturë, one-vs-rest Platt dhe isotropikë sipas klasave. Platt u mbajt për 1X2 sipas loss-it log të validimit; isotropiku sipas klasave mbahet vetëm si diagnostikë për shkak të rrezikut të overfit-it.",
+
+  "method.explanationTitle": "Shkalla e shpjegimit",
+  "method.explanationIntro":
+    "Shpjegimet e LightGBM përdorin SHAP. Ato përshkruajnë ndryshimin në rezultatin raw të klasës për atë ndeshje dhe nuk janë ndryshime përqindjeje.",
+  "method.largestContributors": "Kontribuesit më të mëdhenj globalë",
+  "method.limitationsTitle": "Kufizime",
+  "method.closing":
+    "Burimi i të dhënave: football-data.co.uk. Kodi nën licencën MIT. Vetëm vlerësime dhe jo këshillim bastesh.",
+  "method.outcomeMetricsTitle": "Tregjet dhe metrikat",
+  "method.outcomeMetricsBody":
+    "Modelet vlerësohen me log loss, Brier score, ranked probability score, saktësi dhe gabim të pritshëm të kalibrimt sipas klasës kryesore, kur është e përshtatshme.",
+  "method.bttsNote":
+    "Vlera mbi 2.5 krahasohet me tregjet; kuotat BTTS mungojnë në skedarët burimorë, kështu që BTTS krahasohet me prioritetet e klasave.",
+  "method.modelClassPrior": "Prioritet i klasës: baseline sipas frekuencave të sezonit.",
+  "method.modelElo": "Elo: parashikime me vlerësim, pa kuota ndeshjesh.",
+  "method.modelDixonColes": "Dixon-Coles: model goli me avantazh të përbashkët në shtëpi dhe parametra sulm/mbrojtje.",
+  "method.modelLightGbm": "LightGBM: boosting-gradient mbi veçori të paralindura para ndeshjes.",
+  "method.modelPlatt": "LightGBM me one-vs-rest Platt, i zgjedhur vetëm për loss validimi.",
+  "method.modelEnsemble": "Ensemble i peshuar nga i njëjti bashkësi kandidatësh.",
+  "method.limitation1": "Dy sezona test me nga 380 ndeshje cdo njëri janë mostrë e vogël.",
+  "method.limitation2": "Renditjet dhe intervallet e bootstrap mbajnë pasiguri të madhe.",
+  "method.limitation3": "Çmimet mund të mos jenë kuota të vërteta mbyllëse; disponueshmëria, limitet dhe kostot janë lënë jashtë.",
+  "method.limitation4": "Performanca historike nuk garanton sjellje të ardhshme.",
+  "styleguide.title": "Katalogu i komponentëve",
+  "styleguide.lead": "Komponentët e disponueshëm në të dyja temat. Fshehur nga navigimi kryesor.",
+  "styleguide.buttons": "Butonat",
+  "styleguide.probabilityBar": "Shirit probabiliteti",
+  "styleguide.statRow": "Rreshti stat",
+  "styleguide.table": "Tabela",
+  "styleguide.disclaimer": "Pohim",
+} as const;

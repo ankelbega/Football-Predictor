@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { useI18n } from "./i18n/useI18n";
 import { PredictView } from "./views/PredictView";
 import { PerformanceView } from "./views/PerformanceView";
 import { MethodView } from "./views/MethodView";
@@ -22,45 +23,38 @@ function useTheme() {
 
 function Header() {
   const location = useLocation();
-  const [language, setLanguage] = useState<"en" | "sq">(() => {
-    return window.localStorage.getItem("language") === "sq" ? "sq" : "en";
-  });
+  const { locale, setLocale, t } = useI18n();
   const { theme, toggle: toggleTheme } = useTheme();
   const isActive = (path: string) => location.pathname === path;
-
-  useEffect(() => {
-    document.documentElement.setAttribute("lang", language === "sq" ? "sq" : "en");
-    window.localStorage.setItem("language", language);
-  }, [language]);
 
   return (
     <header className="site-header">
       <div className="container site-header__inner">
         <Link className="wordmark" to="/">
-          Football Predictor
+          {t("app.name")}
         </Link>
         <nav className="site-nav" aria-label="Primary">
           <Link aria-current={isActive("/") ? "page" : undefined} className="site-nav__link" to="/">
-            Predict
+            {t("nav.predict")}
           </Link>
           <Link aria-current={isActive("/performance") ? "page" : undefined} className="site-nav__link" to="/performance">
-            Performance
+            {t("nav.performance")}
           </Link>
           <Link aria-current={isActive("/method") ? "page" : undefined} className="site-nav__link" to="/method">
-            Method
+            {t("nav.method")}
           </Link>
         </nav>
         <div className="site-controls">
-          <button type="button" className="text-button" onClick={toggleTheme} aria-label="Toggle colour theme">
-            {theme === "dark" ? "Dark" : "Light"}
+          <button type="button" className="text-button" onClick={toggleTheme} aria-label={t("controls.themeToggle")}>
+            {theme === "dark" ? t("controls.darkTheme") : t("controls.lightTheme")}
           </button>
           <button
             type="button"
             className="text-button"
-            onClick={() => setLanguage((current) => (current === "en" ? "sq" : "en"))}
-            aria-label="Toggle language"
+            onClick={() => setLocale(locale === "en" ? "sq" : "en")}
+            aria-label={t("controls.languageToggle")}
           >
-            {language === "en" ? "EN" : "SQ"}
+            {locale === "en" ? "EN" : "SQ"}
           </button>
         </div>
       </div>
@@ -69,16 +63,15 @@ function Header() {
 }
 
 function Footer() {
+  const { t } = useI18n();
   return (
     <footer className="site-footer">
       <div className="container">
-        <p>Data source: football-data.co.uk. Software under the MIT licence.</p>
-        <p className="site-footer__disclaimer">
-          Estimates only. Not betting advice and not a guarantee of the result.
-        </p>
+        <p>{t("footer.sourceCredit")}. {t("footer.licence")}</p>
+        <p className="site-footer__disclaimer">{t("footer.disclaimerEstimates")}</p>
         <p>
           <a href="https://github.com/ankelbega/Football-Predictor" target="_blank" rel="noreferrer">
-            Source code
+            {t("footer.sourceCode") ?? "Source code"}
           </a>
         </p>
       </div>

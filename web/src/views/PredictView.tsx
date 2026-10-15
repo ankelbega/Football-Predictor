@@ -6,6 +6,7 @@ import { ExplanatoryFeatureList } from "../components/ExplanatoryFeatureList";
 import { MarketBar } from "../components/MarketBar";
 import { ProbabilityBar } from "../components/ProbabilityBar";
 import { ScorelineList } from "../components/ScorelineList";
+import { useI18n } from "../i18n/useI18n";
 import { useHealth } from "../hooks/useHealth";
 import { useTeams } from "../hooks/useTeams";
 import { usePrediction } from "../hooks/usePrediction";
@@ -22,6 +23,7 @@ export function PredictView() {
   const date = searchParams.get("date") ?? "";
   const rawModel = searchParams.get("model") ?? "lightgbm";
   const model = rawModel === "dixon_coles" ? "dixon_coles" : "lightgbm";
+  const { t } = useI18n();
 
   const { data: teams, loading: teamsLoading, error: teamsError } = useTeams();
   const { data: health } = useHealth();
@@ -30,7 +32,9 @@ export function PredictView() {
 
   const sameTeam = home !== "" && home === away;
   const dateError =
-    date !== "" && date < minimumDate ? `Prediction date must be after ${formatIsoDate(minimumDate)}.` : "";
+    date !== "" && date < minimumDate
+      ? t("predict.dateTooEarly").replace("{date}", formatIsoDate(minimumDate))
+      : "";
   const formIsValid =
     home !== "" && away !== "" && date !== "" && !sameTeam && dateError === "";
 
@@ -65,31 +69,31 @@ export function PredictView() {
   return (
     <section className="predict-view">
       <div className="predict-view__intro">
-        <h1>Predict a match to come</h1>
-        <p>Pick two clubs and a fixture date after the model&apos;s training cutoff.</p>
+        <h1>{t("predict.title")}</h1>
+        <p>{t("predict.lead")}</p>
       </div>
 
       <div className="predict-controls">
         <Combobox
           id="prediction-home"
-          label="Home team"
+          label={t("predict.homeTeam")}
           options={teamOptions}
           value={home}
           onChange={(value) => updateParam("home", value)}
-          placeholder={teamsLoading ? "Loading clubs..." : "Choose a home club"}
+          placeholder={teamsLoading ? t("predict.loadingClubs") : t("predict.chooseClub")}
           disabled={teamsLoading || teamOptions.length === 0}
         />
         <Combobox
           id="prediction-away"
-          label="Away team"
+          label={t("predict.awayTeam")}
           options={teamOptions}
           value={away}
           onChange={(value) => updateParam("away", value)}
-          placeholder={teamsLoading ? "Loading clubs..." : "Choose an away club"}
+          placeholder={teamsLoading ? t("predict.loadingClubs") : t("predict.chooseClub")}
           disabled={teamsLoading || teamOptions.length === 0}
         />
         <label className="predict-field" htmlFor="prediction-date">
-          <span className="predict-field__label">Fixture date</span>
+          <span className="predict-field__label">{t("predict.fixtureDate")}</span>
           <input
             id="prediction-date"
             type="date"
@@ -99,7 +103,7 @@ export function PredictView() {
           />
         </label>
         <label className="predict-field" htmlFor="prediction-model">
-          <span className="predict-field__label">Model</span>
+          <span className="predict-field__label">{t("predict.model")}</span>
           <select
             id="prediction-model"
             value={model}
@@ -119,27 +123,27 @@ export function PredictView() {
             className={displayMode === "percent" ? "text-button is-selected" : "text-button"}
             onClick={() => setDisplayMode("percent")}
           >
-            Percent
+            {t("predict.displayPercent")}
           </button>
           <button
             type="button"
             className={displayMode === "oneInN" ? "text-button is-selected" : "text-button"}
             onClick={() => setDisplayMode("oneInN")}
           >
-            1 in N
+            {t("predict.displayOneInN")}
           </button>
         </div>
       </div>
 
       {teamsError ? <p role="alert">{teamsError}</p> : null}
-      {sameTeam ? <p role="alert">Choose two different teams.</p> : null}
+      {sameTeam ? <p role="alert">{t("predict.sameTeam")}</p> : null}
       {dateError ? <p role="alert">{dateError}</p> : null}
       {!teamsLoading && teamOptions.length === 0 ? (
-        <p role="status">Could not load the club list.</p>
+        <p role="status">{t("predict.noClubList")}</p>
       ) : null}
 
       <div className={`prediction-output ${predictionState.stale ? "is-stale" : ""}`} aria-busy={predictionLoading}>
-        {predictionLoading && !prediction ? <p>Calculating...</p> : null}
+        {predictionLoading && !prediction ? <p>{t("predict.submitting")}</p> : null}
         {predictionError ? (
           <p role="alert">
             {predictionError}{" "}
@@ -152,7 +156,7 @@ export function PredictView() {
         {prediction ? <PredictionResult prediction={prediction} displayMode={displayMode} /> : null}
 
         {!formIsValid && !predictionLoading ? (
-          <p className="prediction-empty">Pick two teams to see the outlook.</p>
+          <p className="prediction-empty">{t("predict.idle")}</p>
         ) : null}
       </div>
 
@@ -162,6 +166,7 @@ export function PredictView() {
 }
 
 function PredictionResult({ prediction, displayMode }: { prediction: PredictionResponse; displayMode: "percent" | "oneInN" }) {
+  const { t } = useI18n();
   const ideals = prediction.explanatory_features.map((item) => ({
     ...item,
     direction: item.direction ?? "raised",
@@ -172,49 +177,61 @@ function PredictionResult({ prediction, displayMode }: { prediction: PredictionR
       <div className="section-header">
         <h2>{prediction.home_team} vs {prediction.away_team}</h2>
         <p>
-          {formatIsoDate(prediction.match_date)} | Model: {prediction.model}
+          {formatIsoDate(prediction.match_date)} | {t("predict.model")}: {prediction.model}
         </p>
       </div>
 
-      <h3>Match outlook</h3>
+      <h3>{t("predict.outlookHeading")}</h3>
       <p>
-        Home win {formatProbability(prediction.probabilities_1x2.home_win, displayMode)} |{" "}
-        Draw {formatProbability(prediction.probabilities_1x2.draw, displayMode)} |{" "}
-        Away win {formatProbability(prediction.probabilities_1x2.away_win, displayMode)}
+        {t("predict.homeOutcome")} {formatProbability(prediction.probabilities_1x2.home_win, displayMode)} |{" "}
+        {t("predict.drawOutcome")} {formatProbability(prediction.probabilities_1x2.draw, displayMode)} |{" "}
+        {t("predict.awayOutcome")} {formatProbability(prediction.probabilities_1x2.away_win, displayMode)}
       </p>
       <ProbabilityBar
         segments={[
-          { label: "Home", value: prediction.probabilities_1x2.home_win, color: "var(--color-home)" },
-          { label: "Draw", value: prediction.probabilities_1x2.draw, color: "var(--color-draw)" },
-          { label: "Away", value: prediction.probabilities_1x2.away_win, color: "var(--color-away)" },
+          { label: t("predict.homeOutcome"), value: prediction.probabilities_1x2.home_win, color: "var(--color-home)" },
+          { label: t("predict.drawOutcome"), value: prediction.probabilities_1x2.draw, color: "var(--color-draw)" },
+          { label: t("predict.awayOutcome"), value: prediction.probabilities_1x2.away_win, color: "var(--color-away)" },
         ]}
       />
 
-      <h3>Goals</h3>
-      <MarketBar label="over/under" firstLabel="Over 2.5" firstValue={prediction.over_2_5} secondLabel="Under 2.5" secondValue={prediction.under_2_5} />
-      <MarketBar label="both teams to score" firstLabel="BTTS yes" firstValue={prediction.btts_yes} secondLabel="No" secondValue={prediction.btts_no} />
+      <h3>{t("predict.goalsHeading")}</h3>
+      <MarketBar
+        label="over/under"
+        firstLabel={t("predict.overLabel").replace("{threshold}", "2.5")}
+        firstValue={prediction.over_2_5}
+        secondLabel={t("predict.underLabel").replace("{threshold}", "2.5")}
+        secondValue={prediction.under_2_5}
+      />
+      <MarketBar
+        label="both teams to score"
+        firstLabel={t("predict.bttsYes")}
+        firstValue={prediction.btts_yes}
+        secondLabel={t("predict.bttsNo")}
+        secondValue={prediction.btts_no}
+      />
 
-      <h3>Most likely scorelines</h3>
+      <h3>{t("predict.scorelinesHeading")}</h3>
       <ScorelineList items={prediction.most_likely_scorelines} displayMode={displayMode} />
 
       {prediction.explanatory_features.length > 0 ? (
         <>
           <h3>
             {prediction.model === "lightgbm"
-              ? "Why the model leans this way (LightGBM)"
-              : "Team ratings used by Dixon-Coles"}
+              ? t("predict.explanation.lightgbm")
+              : t("predict.explanation.dixonColes")}
           </h3>
           <ExplanatoryFeatureList model={prediction.model} items={ideals} />
           {prediction.model === "lightgbm" ? (
-            <p className="explanatory-scale">
-              Contributions are to the model&apos;s raw score, not percentage points.
-            </p>
+            <p className="explanatory-scale">{t("predict.contributionRawScore")}</p>
           ) : null}
         </>
       ) : null}
 
       <p className="prediction-footnote">
-        Model: {prediction.model}. Trained on matches up to {formatIsoDate(cutoffDateOnly(prediction.training_data_cutoff))}.
+        {t("predict.modelLabel")
+          .replace("{model}", prediction.model)
+          .replace("{date}", formatIsoDate(cutoffDateOnly(prediction.training_data_cutoff)))}
       </p>
     </>
   );

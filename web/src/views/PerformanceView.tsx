@@ -1,4 +1,5 @@
 import data from "../data/performance.json";
+import { useI18n } from "../i18n/useI18n";
 import "./PerformanceView.css";
 
 type Phase4Row = (typeof data.phase4_model_comparison)[number];
@@ -29,29 +30,28 @@ function bestModelFor(rows: Phase4Row[], season: string): string | undefined {
 }
 
 function MetricTable({ title, market }: { title: string; market: string }) {
+  const { t } = useI18n();
   const rows = byMarketAndSeason(market);
   const seasons = [...new Set(rows.map((row) => String(row.season)))];
   return (
     <section className="card-block">
       <h2>{title}</h2>
-      <p className="card-block__note">
-        Test partitions only. Lower log loss is better; the lowest value for each season is underlined.
-      </p>
+      <p className="card-block__note">{t("performance.lowerLogLoss")}</p>
       {seasons.map((season) => {
         const seasonRows = rows.filter((row) => String(row.season) === season);
         const best = bestModelFor(rows, season);
         return (
           <div key={season} className="season-block">
-            <h3>Season {season}</h3>
+            <h3>{t("performance.season")} {season}</h3>
             <table className="metric-table">
               <thead>
                 <tr>
-                  <th>Model</th>
-                  <th>Matches</th>
-                  <th>Log loss</th>
-                  <th>Brier score</th>
-                  <th>Accuracy</th>
-                  {market === "1x2" ? <th>RPS</th> : null}
+                  <th>{t("performance.model")}</th>
+                  <th>{t("performance.matches")}</th>
+                  <th>{t("performance.logLoss")}</th>
+                  <th>{t("performance.brierScore")}</th>
+                  <th>{t("performance.accuracy")}</th>
+                  {market === "1x2" ? <th>{t("performance.rps")}</th> : null}
                 </tr>
               </thead>
               <tbody>
@@ -94,22 +94,20 @@ function formatMetric(value: unknown): string {
 }
 
 export function PerformanceView() {
+  const { t } = useI18n();
   const walkForward = data.walk_forward_test_results as Phase4Row[];
 
   return (
     <section className="container view">
-      <h1>Performance</h1>
-      <p>
-        Hold-out results come from committed evaluation tables. Estimates only and not a guarantee of future
-        outcomes.
-      </p>
+      <h1>{t("performance.title")}</h1>
+      <p>{t("performance.lead")}</p>
 
-      <MetricTable title="1X2" market="1x2" />
-      <MetricTable title="Over 2.5" market="over_2_5" />
-      <MetricTable title="Both teams to score" market="btts" />
+      <MetricTable title={t("performance.oneXTwo")} market="1x2" />
+      <MetricTable title={t("performance.overUnder")} market="over_2_5" />
+      <MetricTable title={t("performance.btts")} market="btts" />
 
       <section className="card-block">
-        <h2>Walk-forward expansion</h2>
+        <h2>{t("performance.walkForwardTitle")}</h2>
         <img
           src="/performance/walk-forward-log-loss.png"
           alt="Walk-forward log-loss comparison across seasons 2024/25 and 2025/26."
@@ -121,12 +119,12 @@ export function PerformanceView() {
         <table className="metric-table">
           <thead>
             <tr>
-              <th>Season</th>
-              <th>Model</th>
-              <th>Matches</th>
-              <th>Log loss</th>
-              <th>Brier score</th>
-              <th>Accuracy</th>
+              <th>{t("performance.season")}</th>
+              <th>{t("performance.model")}</th>
+              <th>{t("performance.matches")}</th>
+              <th>{t("performance.logLoss")}</th>
+              <th>{t("performance.brierScore")}</th>
+              <th>{t("performance.accuracy")}</th>
             </tr>
           </thead>
           <tbody>
@@ -145,7 +143,7 @@ export function PerformanceView() {
       </section>
 
       <section className="card-block">
-        <h2>Reliability</h2>
+        <h2>{t("performance.reliabilityTitle")}</h2>
         <img
           src="/performance/reliability-validation.png"
           alt="Validation reliability diagram comparing predicted and observed frequencies."
@@ -157,10 +155,10 @@ export function PerformanceView() {
       </section>
 
       <p className="card-block__note">
-        Calibration notes: Platt scaling improved 1X2 validation loss; class-wise isotonic was diagnostic only.
+        {t("performance.calibrationNote")}
       </p>
       <p className="card-block__note">
-        Small samples: 380 matches per test season. Intervals are wide and rankings are uncertain.
+        {t("performance.smallSamples")}
       </p>
     </section>
   );
