@@ -178,3 +178,26 @@ Additional leagues through adapters; more robust promoted-team priors; xG, injur
 ## Disclaimer
 
 This is an educational software engineering and forecasting project. It is **not betting advice**. Probability estimates are uncertain, historical performance does not guarantee future performance, and the project does not claim to beat bookmakers.
+
+## Web front end
+
+The React application lives in `web/`. It consumes the read-only FastAPI endpoints
+(`/health`, `/teams`, `/predict`) and imports committed performance data.
+
+```bash
+cd web
+npm install
+npm run dev
+npm run build
+npm test
+npx playwright test
+```
+
+Performance data can be regenerated from `results/` with:
+
+```bash
+npm run export:performance
+```
+
+The interface supports light/dark themes, English/Albanian copy, percent and 1-in-N
+probability formats, responsive layouts, and reduced-motion preferences.

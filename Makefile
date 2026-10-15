@@ -50,3 +50,22 @@ lint:
 
 # Reproduce the pipeline stages in dependency order from cached/free source data.
 all: download validate build-features evaluate train
+
+# Generate the web Performance page data from committed result tables.
+web-export:
+	npm --prefix web run export:performance
+
+web-install:
+	npm --prefix web install
+
+web-build:
+	npm --prefix web run build
+
+web-test:
+	npm --prefix web test
+
+web-e2e:
+	npm --prefix web run e2e
+
+web-lint:
+	npm --prefix web run lint
