@@ -1,0 +1,43 @@
+.root {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.labels,
+.values {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--text-xs);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.labels {
+  color: var(--color-ink);
+  font-weight: 500;
+}
+
+.values {
+  color: var(--color-ink-muted);
+}
+
+.bar {
+  display: flex;
+  height: 8px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--color-surface-2);
+}
+
+.first,
+.second {
+  height: 100%;
+}
+
+.first {
+  background: var(--color-accent);
+}
+
+.second {
+  background: var(--color-hairline-strong);
+}

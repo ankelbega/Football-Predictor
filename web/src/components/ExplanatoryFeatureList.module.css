@@ -1,0 +1,63 @@
+.list {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.topline {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.feature {
+  font-size: var(--text-sm);
+  color: var(--color-ink);
+}
+
+.contribution {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-sm);
+  color: var(--color-accent);
+}
+
+.barTrack {
+  height: 4px;
+  background: var(--color-surface-2);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.bar {
+  display: block;
+  height: 100%;
+  background: var(--color-accent);
+  border-radius: var(--radius-sm);
+}
+
+.detail {
+  margin: 0;
+  color: var(--color-ink-muted);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+}
+
+.dixonItem {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-block: var(--space-1);
+  border-bottom: var(--rule) solid var(--color-hairline);
+}
+
+.value {
+  font-family: var(--font-mono);
+}

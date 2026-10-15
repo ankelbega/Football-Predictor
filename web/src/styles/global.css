@@ -167,6 +167,113 @@ input:focus-visible {
   border-radius: var(--radius-md);
 }
 
+.predict-view {
+  padding-block: var(--space-6);
+  max-width: 1120px;
+}
+
+.predict-view__intro h1 {
+  font-family: var(--font-serif);
+  font-size: var(--text-3xl);
+  line-height: 1.1;
+  margin: 0 0 var(--space-2);
+}
+
+.predict-view__intro p {
+  color: var(--color-ink-muted);
+  max-width: 60ch;
+}
+
+.predict-controls {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-4);
+  margin: var(--space-5) 0;
+  align-items: end;
+}
+
+.predict-field {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.predict-field__label {
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+.predict-field input,
+.predict-field select {
+  min-height: 44px;
+  border: var(--rule) solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font: inherit;
+  padding: 0 var(--space-3);
+}
+
+.predict-display-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.is-selected {
+  background: var(--color-accent);
+  color: #fff;
+  border-color: var(--color-accent);
+}
+
+.prediction-output {
+  margin-top: var(--space-5);
+  transition: opacity var(--motion-base) var(--ease-out);
+}
+
+.prediction-output.is-stale {
+  opacity: 0.55;
+}
+
+.section-header {
+  margin-top: var(--space-5);
+}
+
+.section-header h2 {
+  font-family: var(--font-serif);
+  font-size: var(--text-2xl);
+  line-height: 1.1;
+  margin: 0 0 var(--space-1);
+}
+
+.section-header p {
+  color: var(--color-ink-muted);
+  margin: 0 0 var(--space-4);
+}
+
+.prediction-output h3 {
+  font-family: var(--font-serif);
+  font-size: var(--text-xl);
+  margin: var(--space-5) 0 var(--space-3);
+}
+
+.prediction-empty,
+.explanatory-scale {
+  color: var(--color-ink-muted);
+  font-size: var(--text-sm);
+}
+
+.prediction-footnote {
+  margin-top: var(--space-5);
+  color: var(--color-ink-muted);
+  font-size: var(--text-sm);
+}
+
+@media (max-width: 860px) {
+  .predict-controls {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
