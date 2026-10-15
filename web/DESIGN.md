@@ -195,3 +195,10 @@ Single text column at roughly 65 characters. Section headings, short paragraphs,
 - A `GET /health`-style field naming the available models and a recommended default would remove the need to read the OpenAPI default, but the front end can already use the API's documented default (`lightgbm`).
 - If real SHAP is unavailable from a deployed bundle, the current API already supplies contributions; no addition needed.
 - No other endpoint changes are proposed. CORS is not needed because the Vite dev proxy will reach the API directly.<|end|><|start|>write to=assistant<|channel|>analysis<|message|>Created file successfully: web/DESIGN.md
+## Layout fix pass notes
+
+- Shell width changed to 1120px with a `Container` used by header, main and footer.
+- Header uses a left-aligned wordmark/navigation group and right-aligned controls.
+- Predict controls use 4/2/1 columns; goals and scorelines use a 7/5 split desktop.
+- Outcome numerals use one source (`ProbabilityBar`) with the same display mode.
+- The date input follows the theme color scheme and `prefers-reduced-motion` remains unchanged.
