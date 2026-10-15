@@ -24,7 +24,9 @@ class FakeResponse:
         return False
 
 
-def make_config(tmp_path: Path, source_url: str = "https://example.test/{season}/{league}.csv") -> DataConfig:
+def make_config(
+    tmp_path: Path, source_url: str = "https://example.test/{season}/{league}.csv"
+) -> DataConfig:
     return DataConfig(
         source_url=source_url,
         leagues=["E0"],
@@ -36,7 +38,9 @@ def make_config(tmp_path: Path, source_url: str = "https://example.test/{season}
     )
 
 
-def test_download_source_reuses_cached_file_without_http(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_download_source_reuses_cached_file_without_http(tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Risk: cached raw files must prevent unnecessary network calls."""
     config = make_config(tmp_path)
     cached = config.cache_dir / "E0_2122.csv"
@@ -51,7 +55,9 @@ def test_download_source_reuses_cached_file_without_http(tmp_path: Path, monkeyp
     assert paths == [cached]
 
 
-def test_download_source_writes_successful_http_response(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_download_source_writes_successful_http_response(tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Risk: successful downloads must be cached as the exact response bytes."""
     config = make_config(tmp_path)
 
@@ -65,7 +71,9 @@ def test_download_source_writes_successful_http_response(tmp_path: Path, monkeyp
     assert paths[0].read_bytes() == b"Date,HomeTeam,AwayTeam,FTHG,FTAG,FTR\n01/01/21,A,B,1,0,H\n"
 
 
-def test_download_source_refresh_bypasses_cache(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_download_source_refresh_bypasses_cache(tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Risk: refresh mode must not silently reuse a stale cached file."""
     config = make_config(tmp_path)
     cached = config.cache_dir / "E0_2122.csv"
@@ -80,8 +88,10 @@ def test_download_source_refresh_bypasses_cache(tmp_path: Path, monkeypatch: pyt
     assert paths[0].read_bytes() == b"new"
 
 
-def test_download_source_skips_failed_and_empty_responses(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Risk: transient HTTP failures and empty responses must be logged and skipped, not crash callers."""
+def test_download_source_skips_failed_and_empty_responses(tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Risk: transient HTTP failures and empty responses must be skipped."""
     config = DataConfig(
         source_url="https://example.test/{season}/{league}.csv",
         leagues=["E0", "E1"],
@@ -102,8 +112,10 @@ def test_download_source_skips_failed_and_empty_responses(tmp_path: Path, monkey
         download_source(config, refresh=True)
 
 
-def test_download_source_raises_when_all_failures(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Risk: callers should know when no source data is available instead of receiving an empty list."""
+def test_download_source_raises_when_all_failures(tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Risk: callers should know when no source data is available."""
     config = make_config(tmp_path)
 
     def fake_urlopen(request, timeout):
@@ -114,11 +126,15 @@ def test_download_source_raises_when_all_failures(tmp_path: Path, monkeypatch: p
         download_source(config, refresh=True)
 
 
-def test_ingest_dataset_skips_unusable_source_and_raises_if_none(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Risk: unusable cached sources must be skipped when alternatives exist but failure must be reported when all fail."""
+def test_ingest_dataset_skips_unusable_source_and_raises_if_none(tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Risk: unusable cached sources must be skipped, all-fail must error."""
     source = tmp_path / "E0_2122.csv"
     source.write_text("not a csv with required columns", encoding="utf-8")
     config = make_config(tmp_path)
-    monkeypatch.setattr("footballpred.ingest.download.download_source", lambda cfg, refresh=False: [source])
+    monkeypatch.setattr(
+        "footballpred.ingest.download.download_source", lambda cfg, refresh=False: [source]
+    )
     with pytest.raises(RuntimeError, match="No usable match rows"):
         ingest_dataset(config, refresh=False)

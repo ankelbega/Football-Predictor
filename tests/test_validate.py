@@ -3,15 +3,16 @@
 
 import json
 from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import pytest
 
 from footballpred.ingest.validate import (
-    validate_matches,
-    write_validation_report,
     summarize_matches,
+    validate_matches,
     write_summary,
+    write_validation_report,
 )
 
 

@@ -68,7 +68,9 @@ def test_cli_download_with_mocked_http(tmp_path: Path, monkeypatch: pytest.Monke
     """Risk: CLI download must turn a successful ingest into a user-facing saved-row summary."""
     raw_path = tmp_path / "E0_2122.csv"
     make_raw(raw_path, 20)
-    monkeypatch.setattr("footballpred.ingest.download.download_source", lambda cfg, refresh=False: [raw_path])
+    monkeypatch.setattr(
+        "footballpred.ingest.download.download_source", lambda cfg, refresh=False: [raw_path]
+    )
     processed_path = tmp_path / "processed.csv"
     config_path = write_config(tmp_path, raw_path, processed_path)
     runner = CliRunner()
@@ -79,7 +81,7 @@ def test_cli_download_with_mocked_http(tmp_path: Path, monkeypatch: pytest.Monke
 
 
 def test_cli_validate_and_build_features(tmp_path: Path) -> None:
-    """Risk: CLI read-transform commands must consume the processed dataset and write feature output."""
+    """Risk: CLI read-transform commands must consume the processed dataset."""
     raw_path = tmp_path / "raw.csv"
     make_raw(raw_path, 20)
     from footballpred.ingest.clean import clean_source_file
@@ -118,7 +120,10 @@ def test_cli_train_teams_and_predict(tmp_path: Path) -> None:
     assert "Arsenal" in teams_result.output
     predict_result = runner.invoke(
         app,
-        ["predict", "--home", "Arsenal", "--away", "Chelsea", "--date", "2022-01-01", "--config", str(config_path)],
+        [
+            "predict", "--home", "Arsenal", "--away", "Chelsea",
+            "--date", "2022-01-01", "--config", str(config_path),
+        ],
     )
     assert predict_result.exit_code == 0, predict_result.output
     assert "probabilities_1x2" in predict_result.output

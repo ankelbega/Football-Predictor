@@ -5,9 +5,9 @@ from pathlib import Path
 
 import pytest
 import yaml
+from pydantic import ValidationError
 
 from footballpred.config import load_config
-from pydantic import ValidationError
 
 
 def write_config(tmp_path: Path, payload: dict) -> Path:

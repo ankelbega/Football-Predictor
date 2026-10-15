@@ -3,7 +3,6 @@
 
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 import pytest
 
@@ -21,7 +20,9 @@ def make_dataset() -> pd.DataFrame:
     for season, start in seasons:
         for index in range(20):
             home, away = teams[index % 4], teams[(index + 1) % 4]
-            home_goals, away_goals = (2, 0) if index % 3 == 0 else (1, 1) if index % 3 == 1 else (0, 1)
+            home_goals, away_goals = (
+                (2, 0) if index % 3 == 0 else (1, 1) if index % 3 == 1 else (0, 1)
+            )
             result = "H" if home_goals > away_goals else "D" if home_goals == away_goals else "A"
             match_date = (pd.Timestamp(start) + pd.to_timedelta(index, unit="D")).date().isoformat()
             rows.append(
@@ -72,7 +73,7 @@ SETTINGS = {
 
 
 def test_evaluate_reports_smoke(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Risk: report generation should complete and persist outputs without changing committed artifacts."""
+    """Risk: report generation completes and persists outputs."""
     monkeypatch.chdir(tmp_path)
     matches = make_dataset()
     output_path = tmp_path / "results" / "model-comparison.csv"

@@ -4,15 +4,14 @@
 import numpy as np
 
 from footballpred.models.calibration import (
-    TemperatureScaler,
-    PlattScaler,
     IsotonicBinaryScaler,
     IsotonicMulticlassScaler,
-    select_multiclass_calibrator,
+    PlattScaler,
+    TemperatureScaler,
     apply_multiclass_calibrator,
     select_binary_isotonic,
+    select_multiclass_calibrator,
 )
-from footballpred.models.baselines import OUTCOMES
 
 
 def multiclass_fixture() -> tuple[np.ndarray, np.ndarray]:
@@ -59,7 +58,7 @@ def test_platt_scaler_validity() -> None:
 
 
 def test_isotonic_multiclass_scaler_validity() -> None:
-    """Risk: isotonic calibration must remain a valid probability mapping rather than NaNs or negatives."""
+    """Risk: isotonic calibration must remain a valid probability mapping."""
     probabilities, labels = multiclass_fixture()
     scaler = IsotonicMulticlassScaler().fit(probabilities, labels)
     calibrated = scaler.predict_proba(probabilities)
@@ -69,7 +68,7 @@ def test_isotonic_multiclass_scaler_validity() -> None:
 
 
 def test_isotonic_binary_scaler_validity() -> None:
-    """Risk: binary isotonic calibration must stay bounded and monotonic-safe on validation output."""
+    """Risk: binary isotonic calibration output must stay bounded."""
     probabilities, targets = binary_fixture()
     scaler = IsotonicBinaryScaler().fit(probabilities, targets)
     calibrated = scaler.predict_proba(probabilities)
@@ -79,7 +78,7 @@ def test_isotonic_binary_scaler_validity() -> None:
 
 
 def test_select_multiclass_calibrator_contract() -> None:
-    """Risk: calibrator selection must expose every candidate score and avoid invalid chosen labels."""
+    """Risk: calibrator selection must expose candidate scores."""
     probabilities, labels = multiclass_fixture()
     name, calibrator, scores = select_multiclass_calibrator(probabilities, labels)
     assert name in {"raw", "temperature", "platt", "isotonic"} and name != "isotonic"
@@ -93,7 +92,7 @@ def test_select_multiclass_calibrator_contract() -> None:
 
 
 def test_select_binary_isotonic_contract() -> None:
-    """Risk: binary calibration selection must default to raw serving output while reporting isotonic diagnostics."""
+    """Risk: binary calibration selection defaults to raw serving output."""
     probabilities, targets = binary_fixture()
     name, calibrator, scores = select_binary_isotonic(probabilities, targets)
     assert name == "raw"

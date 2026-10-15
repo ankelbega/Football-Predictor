@@ -3,10 +3,9 @@
 
 import numpy as np
 import pandas as pd
-import pytest
 
 from footballpred.ingest.clean import clean_source_file
-from footballpred.pipeline import fit_deployable_models, save_bundle, load_bundle
+from footballpred.pipeline import fit_deployable_models, load_bundle, save_bundle
 
 
 def tiny_matches() -> pd.DataFrame:
@@ -54,7 +53,7 @@ def test_fit_is_deterministic_across_runs(tmp_path) -> None:
     bundle_one = fit_deployable_models(data, SETTINGS)
     bundle_two = fit_deployable_models(data, SETTINGS)
     assert bundle_one["training_cutoff"] == bundle_two["training_cutoff"]
-    fixture = data.iloc[[0]].copy()
+    data.iloc[[0]].copy()
     path_one = save_bundle(bundle_one, tmp_path / "one.joblib")
     path_two = save_bundle(bundle_two, tmp_path / "two.joblib")
     loaded_one = load_bundle(path_one)
@@ -69,9 +68,9 @@ def test_fit_is_deterministic_across_runs(tmp_path) -> None:
 
 
 def test_cleaned_ingest_matches_golden_file() -> None:
-    """Risk: any change to clean_source_file must be intentional and reviewed against this golden output."""
-    from pathlib import Path
+    """Risk: clean_source_file output must match the golden file."""
     import tempfile
+    from pathlib import Path
 
     source = Path(tempfile.gettempdir()) / "golden_source_check.csv"
     source.write_text(

@@ -75,8 +75,8 @@ def test_end_to_end_tiny_fixture_pipeline(tmp_path, monkeypatch) -> None:
     import pandas as pd
 
     from footballpred.config import DataConfig
-    from footballpred.ingest.download import ingest_dataset
     from footballpred.features.builder import build_features
+    from footballpred.ingest.download import ingest_dataset
 
     teams = ["Arsenal", "Chelsea", "Liverpool", "Everton"]
     lines = ["Date,HomeTeam,AwayTeam,FTHG,FTAG,FTR"]
@@ -84,7 +84,9 @@ def test_end_to_end_tiny_fixture_pipeline(tmp_path, monkeypatch) -> None:
         home, away = teams[index % 4], teams[(index + 1) % 4]
         home_goals, away_goals = (2, 0) if index % 3 == 0 else (1, 1) if index % 3 == 1 else (0, 1)
         result = "H" if home_goals > away_goals else "D" if home_goals == away_goals else "A"
-        day = (pd.Timestamp("2021-01-01") + pd.to_timedelta(int(index), unit="D")).strftime("%d/%m/%y")
+        day = (
+            pd.Timestamp("2021-01-01") + pd.to_timedelta(int(index), unit="D")
+        ).strftime("%d/%m/%y")
         lines.append(f"{day},{home},{away},{home_goals},{away_goals},{result}")
     raw = tmp_path / "E0_2122.csv"
     raw.write_text("\n".join(lines) + "\n", encoding="utf-8")
