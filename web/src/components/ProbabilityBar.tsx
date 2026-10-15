@@ -15,7 +15,7 @@ interface ProbabilityBarProps {
 export function ProbabilityBar({ segments, displayMode = "percent" }: ProbabilityBarProps) {
   const total = segments.reduce((sum, segment) => sum + segment.value, 0) || 1;
   return (
-    <div className={styles.root}>
+    <div className={styles.root} data-testid="outlook-bar">
       <div className={styles.stats}>
         {segments.map((segment) => (
           <div key={segment.label} className={styles.stat}>
