@@ -144,3 +144,28 @@ def test_api_rejects_same_team_and_training_cutoff_dates(tmp_path: Path) -> None
         params={"home": "Arsenal", "away": "Chelsea", "date": "2022-01-01"},
     )
     assert historical.status_code == 422
+
+
+def test_api_predict_missing_query_parameters_are_rejected(tmp_path: Path) -> None:
+    """Risk: incomplete /predict requests must fail validation before touching model state."""
+    data = sample_data()
+    settings = {
+        "lightgbm": {
+            "validation_estimators": [10],
+            "validation_num_leaves": [7],
+            "learning_rate": 0.05,
+            "min_child_samples": 2,
+            "reg_lambda": 1.0,
+            "random_state": 17,
+        },
+        "dixon_coles": {
+            "validation_xi": [0.0, 0.0018],
+            "max_goals": 10,
+            "score_optimization_maxiter": 100,
+        },
+    }
+    bundle = fit_deployable_models(data, settings)
+    client = TestClient(create_app(save_bundle(bundle, tmp_path / "missing-params.joblib")))
+    for params in ({}, {"home": "Arsenal"}, {"away": "Chelsea"}, {"date": "2025-04-01"}):
+        response = client.get("/predict", params=params)
+        assert response.status_code == 422
